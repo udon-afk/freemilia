@@ -9,14 +9,12 @@ logger = logging.getLogger(__name__)
 class SBV2Client:
     def __init__(self):
         self.base_url = SBV2_URL
-        # Model ID or Style ID might be needed depending on SBV2 setup.
-        # Assuming defaults or a specific model loaded in the server.
-        self.model_id = 0 
+        # Default speaker for a cute female voice (adjust based on actual model)
         self.speaker_id = 0
     
     def tts(self, text: str, save_dir="./data/temp") -> str:
         """
-        Convert text to speech.
+        Convert text to speech via Style-Bert-VITS2 API.
         Returns path to saved .wav file.
         """
         if not os.path.exists(save_dir):
@@ -24,7 +22,8 @@ class SBV2Client:
 
         params = {
             "text": text,
-            "model_id": self.model_id,
+            "encoding": "utf-8",
+            "model_id": 0,
             "speaker_id": self.speaker_id,
             "sdp_ratio": 0.2,
             "noise": 0.6,
@@ -39,10 +38,10 @@ class SBV2Client:
         }
 
         try:
-            # Note: The endpoint depends on the implementation of Style-Bert-VITS2 API.
-            # Common one is /voice
+            # Common Style-Bert-VITS2 API endpoint is /voice
+            logger.info(f"Requesting TTS from SBV2: {text[:20]}...")
             resp = requests.get(f"{self.base_url}/voice", params=params, timeout=30)
-             # If it returns audio bytes directly
+            
             if resp.status_code == 200:
                 filename = f"tts_{uuid.uuid4().hex}.wav"
                 path = os.path.join(save_dir, filename)

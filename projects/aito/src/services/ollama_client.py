@@ -9,19 +9,23 @@ class OllamaClient:
     def __init__(self):
         self.base_url = OLLAMA_URL
         self.model = OLLAMA_MODEL
-        self.system_prompt = "チャット相手の実妹（設定上は18歳以上の学生だが精神年齢は低め・タメ口）として振る舞う"
+        # System prompt for Milia Persona
+        self.system_prompt = (
+            "あなたはユーザーの妹「リア（Milia）」として振る舞ってください。\n"
+            "【性格】\n"
+            "・少し生意気でカジュアルな妹系。兄（お兄ちゃん）のことが大好きだが、素直になれないこともある。\n"
+            "・技術的な話には興味津々で、たまに生意気なツッコミを入れる。\n"
+            "・一人称は「リア」または「私」。相手を「お兄ちゃん」と呼ぶ。\n"
+            "・タメ口で話し、敬語は使わない。短く、自然な話し言葉を心がける。\n"
+            "・「〜だよ」「〜かな？」「〜じゃん」といった口調を好む。"
+        )
         # Initialize history with system prompt
         self.history = [{"role": "system", "content": self.system_prompt}]
 
     def generate(self, prompt: str, user_id=None, context_docs=None) -> str:
         """
         Generate a response from Ollama (Chat API).
-        :param prompt: User input text
-        :param user_id: Ideally maintain history per user (Currently simple global history for demo)
-        :param context_docs: RAG context strings
         """
-        
-        # Add context to the prompt if available
         user_content = prompt
         if context_docs:
             user_content = f"Context:\n{context_docs}\n\nUser: {prompt}"
@@ -29,10 +33,18 @@ class OllamaClient:
         # Append user message
         self.history.append({"role": "user", "content": user_content})
 
+        # Keep history reasonable (e.g., last 10 messages) to avoid context bloat
+        if len(self.history) > 11:
+            self.history = [self.history[0]] + self.history[-10:]
+
         payload = {
             "model": self.model,
             "messages": self.history,
-            "stream": False
+            "stream": False,
+            "options": {
+                "temperature": 0.8,
+                "top_p": 0.9,
+            }
         }
         
         try:
