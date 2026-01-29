@@ -1,6 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 import logging
 import json
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -12,12 +13,13 @@ class WebSocketServer:
         if cls._instance is None:
             cls._instance = super(WebSocketServer, cls).__new__(cls)
             cls._instance.active_connections = []
+            cls._instance.bot = None # Reference to Discord Bot
         return cls._instance
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        logger.info("New WebSocket connection accepted.")
+        logger.info("New WebSocket connection accepted (Clawdbot/Client).")
 
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
@@ -32,15 +34,37 @@ class WebSocketServer:
             except Exception as e:
                 logger.error(f"Failed to send to websocket: {e}")
 
+    async def handle_message(self, message: str):
+        """
+        Handle incoming messages from Clawdbot.
+        Expected format: {"type": "tts_request", "text": "..."}
+        """
+        try:
+            data = json.loads(message)
+            if data.get("type") == "tts_request":
+                text = data.get("text")
+                if text and self.bot:
+                    logger.info(f"Received TTS request from Clawdbot: {text}")
+                    # Dispatch to VoiceChat cog to play it
+                    voice_cog = self.bot.get_cog("VoiceChat")
+                    if voice_cog:
+                        # We use a dummy user or find the active VC
+                        for vc in self.bot.voice_clients:
+                            asyncio.run_coroutine_threadsafe(
+                                voice_cog.play_tts_only(vc, text), 
+                                self.bot.loop
+                            )
+        except Exception as e:
+            logger.error(f"Error handling WS message: {e}")
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     server = WebSocketServer()
     await server.connect(websocket)
     try:
         while True:
-            # Wait for data from client (though we mostly broadcast)
             data = await websocket.receive_text()
-            logger.debug(f"Received from WS: {data}")
+            await server.handle_message(data)
     except WebSocketDisconnect:
         server.disconnect(websocket)
     except Exception as e:

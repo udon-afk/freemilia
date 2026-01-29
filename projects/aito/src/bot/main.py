@@ -5,13 +5,12 @@ import asyncio
 import logging
 import sys
 
-# Add project root to path to allow imports if running directly
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
 from src.config import DISCORD_TOKEN
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("Myria")
+logger = logging.getLogger("MiliaVoice")
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -21,7 +20,6 @@ class MyriaBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
-        # Load Cogs
         extensions = [
             "src.bot.cogs.voice_chat",
             "src.bot.cogs.text_chat",
@@ -31,33 +29,28 @@ class MyriaBot(commands.Bot):
         for ext in extensions:
             try:
                 await self.load_extension(ext)
-                logger.info(f"Loaded extension: {ext}")
+                logger.info(f"Loaded: {ext}")
             except Exception as e:
-                logger.error(f"Failed to load extension {ext}: {e}")
+                logger.error(f"Fail {ext}: {e}")
 
         # Start WebSocket Server
-        from ..services.websocket_server import app, WS_HOST, WS_PORT
+        from ..services.websocket_server import app, WS_HOST, WS_PORT, WebSocketServer
         import uvicorn
         
         config = uvicorn.Config(app, host=WS_HOST, port=WS_PORT, log_level="info")
         server = uvicorn.Server(config)
         
-        # Run uvicorn in the loop
-        # Run uvicorn in the loop
-        self.loop.create_task(server.serve())
-        logger.info("WebSocket server started in background task.")
+        # Attach Bot to WS Server
+        ws_server = WebSocketServer()
+        ws_server.bot = self
+        self.ws_server = ws_server
 
-        # Attach WS Server helper to bot
-        from ..services.websocket_server import WebSocketServer
-        self.ws_server = WebSocketServer()
+        self.loop.create_task(server.serve())
+        logger.info("WebSocket server started.")
 
     async def on_ready(self):
-        logger.info(f"Logged in as {self.user} (ID: {self.user.id})")
+        logger.info(f"Logged in as {self.user}")
 
 if __name__ == "__main__":
-    if not DISCORD_TOKEN:
-        logger.error("DISCORD_TOKEN not found. Please set it in .env")
-        sys.exit(1)
-        
     bot = MyriaBot()
     bot.run(DISCORD_TOKEN)
