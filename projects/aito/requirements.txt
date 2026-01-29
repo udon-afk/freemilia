@@ -1,0 +1,12 @@
+discord.py[voice]
+git+https://github.com/imayhaveborkedit/discord-ext-voice-recv
+faster-whisper
+ollama
+chromadb
+python-dotenv
+websockets
+numpy
+scipy
+fastapi
+uvicorn
+requests
