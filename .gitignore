@@ -1,0 +1,36 @@
+# Clawdbot Security & Workspace Settings
+
+# 1. Credentials and Config (CRITICAL)
+# Never push the bot's configuration or secret keys.
+.clawdbot/
+clawdbot.json
+*.token
+*.key
+*.pem
+
+# 2. Personal Data and Memories (PRIVACY)
+# These contain chat history, personal notes, and context.
+memory/
+MEMORY.md
+SOUL.md
+USER.md
+IDENTITY.md
+AGENTS.md
+TOOLS.md
+
+# 3. Media and Logs
+# Avoid uploading large files or transient data.
+.clawdbot/media/
+*.log
+tmp/
+temp/
+
+# 4. Environment Variables
+.env
+.env.*
+
+# 5. Common OS/IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
