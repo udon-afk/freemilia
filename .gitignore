@@ -1,26 +1,20 @@
-# Dependencies / build
+# OpenClaw runtime internals (local only)
+.openclaw/
+
+# dependencies / build
 node_modules/
 venv/
 .venv/
 __pycache__/
 *.pyc
 
-# Logs / temp
+# logs / temp
 *.log
 logs/
 tmp/
 .cache/
 
-# Media outputs (large)
-out/*.mp4
-out/*.mov
-out/*.mkv
-
-# OpenClaw runtime internals (may contain tokens/session data)
-.openclaw/
-
-# OS / editor
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
+# large media outputs
+*.mp4
+*.mov
+*.mkv
