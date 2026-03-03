@@ -1,0 +1,6 @@
+🫀 3h Planning Digest ({{DATE_TIME}})
+- candidate1:
+- candidate2:
+- candidate3:
+- today min task:
+- status:

@@ -1,0 +1,4 @@
+Heartbeat task:
+- Collect up to 3 monetization candidates
+- Summarize every 3 hours
+- Output: done / metric / next action
