@@ -1,0 +1,6 @@
+{
+  "channelId": "{{DISCORD_CHANNEL_ID}}",
+  "model": "{{MODEL_ALIAS}}",
+  "workspacePath": "{{WORKSPACE_PATH}}",
+  "schedule": "{{SCHEDULE_EXPR}}"
+}

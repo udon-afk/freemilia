@@ -1,0 +1,2 @@
+[cron systemEvent]
+Reminder: {{REMINDER_TEXT}}

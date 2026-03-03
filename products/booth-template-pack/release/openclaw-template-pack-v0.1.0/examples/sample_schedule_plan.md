@@ -1,0 +1,2 @@
+- 00:00 / 03:00 / 06:00 ... digest
+- keep heartbeat frequent, report batched

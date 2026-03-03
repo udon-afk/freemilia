@@ -1,0 +1,6 @@
+[cron agentTurn]
+Purpose: {{PURPOSE}}
+Output format:
+- summary
+- metrics
+- next action
