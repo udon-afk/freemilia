@@ -2,8 +2,7 @@
 
 最終更新: 2026-03-09 JST
 
-目的: AIRI 側は `provider=openai` 系設定のまま、ローカルの最小ブリッジへ接続する。
-（現時点は mock 応答。後で OpenClaw/リア ルーティングへ差し替え予定）
+目的: AIRI 側は `provider=openai` 系設定のまま、ローカル bridge へ接続する。
 
 ## 1) Bridge ファイル準備
 リポジトリルート（`freemilia`）で:
@@ -12,7 +11,7 @@
 Copy-Item .\ops\bridge\.env.example .\ops\bridge\.env
 ```
 
-必要なら `ops/bridge/.env` を編集（最低限はそのままでOK）。
+必要に応じて `ops/bridge/.env` を編集。
 
 ## 2) Bridge 起動
 
@@ -26,10 +25,17 @@ node .\ops\bridge\openclaw-openai-bridge.js
 [openclaw-openai-bridge] listening on http://127.0.0.1:8787 (mode=mock)
 ```
 
-## 3) 動作確認（任意）
+## 3) 動作確認（curl）
 
 ```powershell
-curl http://127.0.0.1:8787/v1/models
+curl http://127.0.0.1:8787/health
+curl http://127.0.0.1:8787/v1/models -H "Authorization: Bearer dev-openclaw-key"
+```
+
+Linux / WSL なら簡易スクリプトも利用可能:
+
+```bash
+bash ops/bridge/test-bridge-curl.sh
 ```
 
 ## 4) AIRI 側の provider 設定
@@ -39,25 +45,40 @@ AIRI の Provider 設定画面（OpenAI / OpenAI-compatible）で以下を設定
 - Base URL: `http://127.0.0.1:8787/v1`
 - Model: `.env` の `BRIDGE_MODEL`（例: `openclaw-reia-mock`）
 
-> ポイント: AIRI から見れば OpenAI 互換API。実際のバックエンドはローカル bridge。
+## 5) モード切替
 
-## 5) mock → passthrough への切替（プレースホルダ）
-`ops/bridge/.env` で:
+### mock（既定）
+```env
+BRIDGE_MODE=mock
+```
+- `stream=true` もSSEで動作（擬似トークン分割）
 
+### passthrough（上流 OpenAI互換へ中継）
 ```env
 BRIDGE_MODE=passthrough
 BRIDGE_PASSTHROUGH_BASE_URL=https://api.openai.com
 BRIDGE_PASSTHROUGH_API_KEY=<your-key>
 ```
+- `stream=true` 時: 上流がSSEを返す場合はそのまま中継
+- 上流が非SSE JSONの場合は bridge 側でSSE形式へ変換して返却
 
-再起動すると `/v1/chat/completions` を上流へ転送。
+### openclaw（OpenClaw/任意Webhookへ中継）
+```env
+BRIDGE_MODE=openclaw
+BRIDGE_OPENCLAW_ENDPOINT=http://127.0.0.1:8080/v1/chat/completions
+# もしくは BRIDGE_OPENCLAW_WEBHOOK_URL を指定
+BRIDGE_OPENCLAW_API_KEY=<optional>
+```
+- 失敗時は OpenAI 互換の `error` 形式へマッピングして返却
 
-## 6) 既知の範囲（最小実装）
-- 実装済み:
-  - `GET /v1/models`
-  - `POST /v1/chat/completions`（mock + passthrough placeholder）
-- 未実装:
-  - streaming (`stream: true`) の逐次SSE
-  - `/v1/embeddings` など他エンドポイント
+## 6) 実装済み範囲（現時点）
+- `GET /health`
+- `GET /v1/models`
+- `POST /v1/chat/completions`
+  - mock
+  - passthrough
+  - openclaw
+  - `stream: true`（mock / passthrough）
 
-必要最小でローカル疎通できることを優先。
+未実装:
+- `/v1/embeddings` 等の他エンドポイント
