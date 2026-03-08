@@ -19,6 +19,9 @@ cd freemilia
 powershell -ExecutionPolicy Bypass -File .\ops\windows\airi_windows_setup.ps1
 ```
 
+> `products/airi` が無い場合、セットアップスクリプトが自動で
+> `https://github.com/moeru-ai/airi.git`（main）を `products/airi` に取得します。
+
 ## 3) 起動
 ### Webで確認
 ```powershell

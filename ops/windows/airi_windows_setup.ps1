@@ -1,6 +1,8 @@
 param(
   [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path,
-  [switch]$SkipInstall
+  [switch]$SkipInstall,
+  [string]$AiriRepoUrl = "https://github.com/moeru-ai/airi.git",
+  [string]$AiriRef = "main"
 )
 
 $ErrorActionPreference = 'Stop'
@@ -25,7 +27,20 @@ pnpm -v
 
 $AiriDir = Join-Path $RepoRoot "products\airi"
 if (-not (Test-Path $AiriDir)) {
-  throw "products/airi が見つかりません: $AiriDir"
+  Write-Host "[AIRI] products/airi が見つからないため取得します..." -ForegroundColor Yellow
+  $ProductsDir = Join-Path $RepoRoot "products"
+  if (-not (Test-Path $ProductsDir)) { New-Item -ItemType Directory -Path $ProductsDir | Out-Null }
+
+  Push-Location $ProductsDir
+  try {
+    git clone --depth 1 --branch $AiriRef $AiriRepoUrl airi
+  } finally {
+    Pop-Location
+  }
+}
+
+if (-not (Test-Path $AiriDir)) {
+  throw "products/airi の取得に失敗しました: $AiriDir"
 }
 
 Push-Location $AiriDir
