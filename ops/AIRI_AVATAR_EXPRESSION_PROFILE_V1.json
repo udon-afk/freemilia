@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "description": "AIRI avatar expression/motion tuning profile for freemilia",
+  "defaults": {
+    "minIntensity": 0.25,
+    "maxIntensity": 0.9,
+    "neutralAfterMs": 1600,
+    "motionCooldownMs": 900
+  },
+  "emotions": {
+    "happy": { "expression": "happy", "motion": "Happy", "intensity": 0.75 },
+    "sad": { "expression": "sad", "motion": "Sad", "intensity": 0.62 },
+    "angry": { "expression": "angry", "motion": "Angry", "intensity": 0.68 },
+    "think": { "expression": "think", "motion": "Think", "intensity": 0.45 },
+    "surprised": { "expression": "surprised", "motion": "Surprise", "intensity": 0.8 },
+    "awkward": { "expression": null, "motion": "Awkward", "intensity": 0.4 },
+    "question": { "expression": null, "motion": "Question", "intensity": 0.42 },
+    "curious": { "expression": "think", "motion": "Curious", "intensity": 0.52 },
+    "neutral": { "expression": null, "motion": "Idle", "intensity": 0.3 }
+  }
+}

@@ -3,6 +3,7 @@
  * Minimal OpenAI-compatible bridge for AIRI.
  *
  * Endpoints:
+ *   GET  /health
  *   GET  /v1/models
  *   POST /v1/chat/completions
  *
@@ -42,12 +43,75 @@ function loadEnvFile(filePath) {
   }
 }
 
+function nowUnix() {
+  return Math.floor(Date.now() / 1000)
+}
+
+function msNow() {
+  return Date.now()
+}
+
+function sleep(ms) {
+  return new Promise(resolvePromise => setTimeout(resolvePromise, ms))
+}
+
+function toInt(value, fallback) {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : fallback
+}
+
+function toBool(value, fallback = false) {
+  if (typeof value !== 'string')
+    return fallback
+  return /^true|1|yes|on$/i.test(value)
+}
+
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n))
+}
+
+function logJson(level, event, fields = {}) {
+  const base = {
+    ts: new Date().toISOString(),
+    level,
+    event,
+  }
+
+  const payload = JSON.stringify({ ...base, ...fields })
+  if (level === 'error')
+    console.error(payload)
+  else
+    console.log(payload)
+}
+
+function summarizeError(error) {
+  if (!error)
+    return { message: 'unknown' }
+
+  const out = {
+    message: error instanceof Error ? error.message : String(error),
+  }
+
+  if (error && typeof error === 'object') {
+    if (typeof error.name === 'string')
+      out.name = error.name
+    if (typeof error.code === 'string')
+      out.code = error.code
+    if (typeof error.type === 'string')
+      out.type = error.type
+    if (typeof error.cause === 'string')
+      out.cause = error.cause
+  }
+
+  return out
+}
+
 function readJsonBody(req) {
   return new Promise((resolvePromise, rejectPromise) => {
     let buf = ''
     req.on('data', (chunk) => {
       buf += chunk
-      if (buf.length > 1_000_000) {
+      if (buf.length > config.maxRequestBodyBytes) {
         rejectPromise(new Error('Request body too large'))
         req.destroy()
       }
@@ -91,10 +155,6 @@ function sendOpenAIError(res, {
     },
   }
   sendJson(res, status, errorPayload)
-}
-
-function nowUnix() {
-  return Math.floor(Date.now() / 1000)
 }
 
 function normalizeMessageContent(content) {
@@ -245,7 +305,7 @@ async function streamMockCompletion(res, { model, content }) {
       delta: { content: token },
       finishReason: null,
     }))
-    await new Promise(resolvePromise => setTimeout(resolvePromise, 15))
+    await sleep(15)
   }
 
   writeSse(res, createBaseChunk({
@@ -270,23 +330,122 @@ function buildMockCompletion(body) {
   }
 }
 
-async function forwardJsonRequest({ url, authHeader, body, timeoutMs }) {
-  const abortController = new AbortController()
-  const timeout = setTimeout(() => abortController.abort(), timeoutMs)
-  try {
-    return await fetch(url, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        ...(authHeader ? { authorization: authHeader } : {}),
-      },
-      body: JSON.stringify(body),
-      signal: abortController.signal,
-    })
+function retryAfterMsFromResponse(response) {
+  const retryAfter = response.headers.get('retry-after')
+  if (!retryAfter)
+    return 0
+
+  const sec = Number(retryAfter)
+  if (Number.isFinite(sec) && sec >= 0)
+    return Math.floor(sec * 1000)
+
+  const dateMs = Date.parse(retryAfter)
+  if (Number.isFinite(dateMs))
+    return Math.max(0, dateMs - Date.now())
+
+  return 0
+}
+
+function shouldRetryStatus(status) {
+  return status === 408 || status === 409 || status === 425 || status === 429 || (status >= 500 && status <= 599)
+}
+
+function shouldRetryNetworkError(error) {
+  if (!error)
+    return false
+  if (error instanceof Error && error.name === 'AbortError')
+    return false
+
+  const code = typeof error === 'object' && error && typeof error.code === 'string' ? error.code : ''
+  return ['ECONNRESET', 'ECONNREFUSED', 'EPIPE', 'ENOTFOUND', 'ETIMEDOUT', 'UND_ERR_CONNECT_TIMEOUT'].includes(code)
+}
+
+async function forwardJsonRequestWithRetries({ url, authHeader, body, timeoutMs, maxRetries, retryBaseDelayMs, requestId, mode }) {
+  let lastError = null
+  let lastResponse = null
+
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    const startedAt = msNow()
+    const abortController = new AbortController()
+    const timeout = setTimeout(() => abortController.abort(), timeoutMs)
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...(authHeader ? { authorization: authHeader } : {}),
+          'x-request-id': requestId,
+        },
+        body: JSON.stringify(body),
+        signal: abortController.signal,
+      })
+
+      clearTimeout(timeout)
+      const latencyMs = msNow() - startedAt
+
+      if (attempt > 0) {
+        logJson('info', 'bridge.upstream.retry_result', {
+          requestId,
+          mode,
+          attempt,
+          status: response.status,
+          latencyMs,
+        })
+      }
+
+      const canRetry = attempt < maxRetries && shouldRetryStatus(response.status)
+      if (!canRetry)
+        return response
+
+      lastResponse = response
+      const hintedWait = retryAfterMsFromResponse(response)
+      const backoff = retryBaseDelayMs * (2 ** attempt)
+      const jitter = Math.floor(Math.random() * Math.max(1, retryBaseDelayMs / 2))
+      const waitMs = clamp(Math.max(hintedWait, backoff + jitter), 0, config.maxRetryDelayMs)
+
+      logJson('warn', 'bridge.upstream.retry_scheduled', {
+        requestId,
+        mode,
+        attempt,
+        maxRetries,
+        status: response.status,
+        waitMs,
+      })
+      await sleep(waitMs)
+      continue
+    }
+    catch (error) {
+      clearTimeout(timeout)
+      lastError = error
+      const latencyMs = msNow() - startedAt
+
+      const canRetry = attempt < maxRetries && shouldRetryNetworkError(error)
+      logJson(canRetry ? 'warn' : 'error', 'bridge.upstream.fetch_error', {
+        requestId,
+        mode,
+        attempt,
+        maxRetries,
+        latencyMs,
+        ...summarizeError(error),
+      })
+
+      if (!canRetry)
+        throw error
+
+      const backoff = retryBaseDelayMs * (2 ** attempt)
+      const jitter = Math.floor(Math.random() * Math.max(1, retryBaseDelayMs / 2))
+      const waitMs = clamp(backoff + jitter, 0, config.maxRetryDelayMs)
+      await sleep(waitMs)
+    }
   }
-  finally {
-    clearTimeout(timeout)
-  }
+
+  if (lastResponse)
+    return lastResponse
+  if (lastError)
+    throw lastError
+
+  throw new Error('Upstream request failed with unknown retry state')
 }
 
 function resolveBackendTarget(mode) {
@@ -330,17 +489,41 @@ const config = {
   openclawEndpoint: process.env.BRIDGE_OPENCLAW_ENDPOINT || '',
   openclawWebhookUrl: process.env.BRIDGE_OPENCLAW_WEBHOOK_URL || '',
   openclawApiKey: process.env.BRIDGE_OPENCLAW_API_KEY || '',
-  upstreamTimeoutMs: Number(process.env.BRIDGE_UPSTREAM_TIMEOUT_MS || 60_000),
+  upstreamTimeoutMs: toInt(process.env.BRIDGE_UPSTREAM_TIMEOUT_MS, 60_000),
+  upstreamMaxRetries: clamp(toInt(process.env.BRIDGE_UPSTREAM_MAX_RETRIES, 2), 0, 8),
+  upstreamRetryBaseDelayMs: clamp(toInt(process.env.BRIDGE_UPSTREAM_RETRY_BASE_DELAY_MS, 300), 50, 10_000),
+  maxRetryDelayMs: clamp(toInt(process.env.BRIDGE_UPSTREAM_RETRY_MAX_DELAY_MS, 5000), 100, 60_000),
+  maxRequestBodyBytes: clamp(toInt(process.env.BRIDGE_MAX_BODY_BYTES, 1_000_000), 100_000, 20_000_000),
+  logRequests: toBool(process.env.BRIDGE_LOG_REQUESTS, true),
 }
 
 const server = http.createServer(async (req, res) => {
+  const requestId = req.headers['x-request-id'] || `br-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const requestStartedAt = msNow()
+
   try {
     const reqUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
+
+    if (config.logRequests) {
+      logJson('info', 'bridge.request.in', {
+        requestId,
+        method: req.method || 'GET',
+        path: reqUrl.pathname,
+        mode: config.mode,
+      })
+    }
 
     if (reqUrl.pathname === '/health') {
       return sendJson(res, 200, {
         ok: true,
         mode: config.mode,
+        model: config.defaultModel,
+        uptimeSec: Math.floor(process.uptime()),
+        upstream: {
+          timeoutMs: config.upstreamTimeoutMs,
+          maxRetries: config.upstreamMaxRetries,
+          retryBaseDelayMs: config.upstreamRetryBaseDelayMs,
+        },
       })
     }
 
@@ -421,16 +604,28 @@ const server = http.createServer(async (req, res) => {
         const upstreamAuth = target.authHeader || inboundAuth
 
         let upstreamResp
+        const upstreamStartedAt = msNow()
         try {
-          upstreamResp = await forwardJsonRequest({
+          upstreamResp = await forwardJsonRequestWithRetries({
             url: target.url,
             authHeader: upstreamAuth,
             body,
             timeoutMs: config.upstreamTimeoutMs,
+            maxRetries: config.upstreamMaxRetries,
+            retryBaseDelayMs: config.upstreamRetryBaseDelayMs,
+            requestId: String(requestId),
+            mode: config.mode,
           })
         }
         catch (error) {
           const isAbort = error instanceof Error && error.name === 'AbortError'
+          logJson('error', 'bridge.upstream.failed', {
+            requestId,
+            mode: config.mode,
+            upstreamUrl: target.url,
+            elapsedMs: msNow() - upstreamStartedAt,
+            ...summarizeError(error),
+          })
           return sendOpenAIError(res, {
             status: isAbort ? 504 : 502,
             type: isAbort ? 'request_timeout' : 'server_error',
@@ -441,7 +636,16 @@ const server = http.createServer(async (req, res) => {
           })
         }
 
-        const contentType = upstreamResp.headers.get('content-type') || ''
+        const contentType = (upstreamResp.headers.get('content-type') || '').toLowerCase()
+        logJson('info', 'bridge.upstream.response', {
+          requestId,
+          mode: config.mode,
+          status: upstreamResp.status,
+          contentType,
+          elapsedMs: msNow() - upstreamStartedAt,
+          stream,
+        })
+
         if (upstreamResp.ok && stream && contentType.includes('text/event-stream')) {
           res.writeHead(upstreamResp.status, {
             'content-type': 'text/event-stream; charset=utf-8',
@@ -503,6 +707,10 @@ const server = http.createServer(async (req, res) => {
     })
   }
   catch (error) {
+    logJson('error', 'bridge.request.error', {
+      requestId,
+      ...summarizeError(error),
+    })
     sendOpenAIError(res, {
       status: 500,
       message: error instanceof Error ? error.message : 'Internal error',
@@ -510,10 +718,24 @@ const server = http.createServer(async (req, res) => {
       code: 'internal_error',
     })
   }
+  finally {
+    if (config.logRequests) {
+      logJson('info', 'bridge.request.out', {
+        requestId,
+        elapsedMs: msNow() - requestStartedAt,
+      })
+    }
+  }
 })
 
 server.listen(config.port, config.host, () => {
-  console.log(`[openclaw-openai-bridge] listening on http://${config.host}:${config.port} (mode=${config.mode})`)
-  console.log(`[openclaw-openai-bridge] model=${config.defaultModel}`)
-  console.log(`[openclaw-openai-bridge] env=${ENV_FILE}`)
+  logJson('info', 'bridge.server.started', {
+    listen: `http://${config.host}:${config.port}`,
+    mode: config.mode,
+    model: config.defaultModel,
+    env: ENV_FILE,
+    upstreamTimeoutMs: config.upstreamTimeoutMs,
+    upstreamMaxRetries: config.upstreamMaxRetries,
+    upstreamRetryBaseDelayMs: config.upstreamRetryBaseDelayMs,
+  })
 })

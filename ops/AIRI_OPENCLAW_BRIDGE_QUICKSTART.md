@@ -22,7 +22,7 @@ node .\ops\bridge\openclaw-openai-bridge.js
 成功時ログ例:
 
 ```text
-[openclaw-openai-bridge] listening on http://127.0.0.1:8787 (mode=mock)
+{"level":"info","event":"bridge.server.started",...}
 ```
 
 ## 3) 動作確認（curl）
@@ -36,6 +36,12 @@ Linux / WSL なら簡易スクリプトも利用可能:
 
 ```bash
 bash ops/bridge/test-bridge-curl.sh
+```
+
+接続診断（stream終端や認証含む）:
+
+```bash
+bash ops/bridge/bridge_diag.sh
 ```
 
 ## 4) AIRI 側の provider 設定
@@ -71,7 +77,29 @@ BRIDGE_OPENCLAW_API_KEY=<optional>
 ```
 - 失敗時は OpenAI 互換の `error` 形式へマッピングして返却
 
-## 6) 実装済み範囲（現時点）
+## 6) 安定化パラメータ（追加）
+`.env` で以下を調整可能:
+
+- `BRIDGE_UPSTREAM_TIMEOUT_MS` : upstream 1試行のタイムアウト
+- `BRIDGE_UPSTREAM_MAX_RETRIES` : リトライ回数（総試行数=1+回数）
+- `BRIDGE_UPSTREAM_RETRY_BASE_DELAY_MS` : 指数バックオフ初期値
+- `BRIDGE_UPSTREAM_RETRY_MAX_DELAY_MS` : バックオフ上限
+- `BRIDGE_LOG_REQUESTS` : リクエスト単位ログのON/OFF
+
+リトライ対象: `408/409/425/429/5xx` と一部ネットワーク断。
+
+## 7) 可観測性（追加）
+bridge は JSON ログを標準出力/標準エラーに出力。
+主要イベント:
+
+- `bridge.request.in` / `bridge.request.out`
+- `bridge.upstream.response`
+- `bridge.upstream.retry_scheduled`
+- `bridge.upstream.fetch_error`
+
+`x-request-id` を受け取った場合は upstream にも引き継ぐ。
+
+## 8) 実装済み範囲（現時点）
 - `GET /health`
 - `GET /v1/models`
 - `POST /v1/chat/completions`
