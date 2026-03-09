@@ -7,7 +7,8 @@
 ## 1) 追加した設定プロファイル
 - `ops/AIRI_AVATAR_EXPRESSION_PROFILE_V1.json`
 
-このファイルは運用時のチューニング基準値として使う（コードへの直接ハード依存はまだしない）。
+このファイルは `ops/airi_sync_avatar_profile.mjs` で `apps/stage-web/public/bridge/output/avatar-expression-profile.json` に同期され、
+Stage / performance-playground 側で直接読み込んで intensity clamp / motion cooldown / neutralAfter を適用する。
 
 ## 2) 運用手順
 

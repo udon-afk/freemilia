@@ -47,3 +47,28 @@
 結果:
 - 「実装前にまず運用で調整できる」状態を用意
 - 次段で profile を stage-ui queue に読み込ませる実装準備が完了
+
+## 変更4: profile直読み込み + bridge/output適用 + one-command起動
+
+対象:
+- `products/airi/packages/stage-ui/src/composables/avatar-expression-profile.ts`（新規）
+- `products/airi/packages/stage-ui/src/components/scenes/Stage.vue`（更新）
+- `products/airi/apps/stage-web/src/pages/devtools/performance-playground.vue`（更新）
+- `products/airi/apps/stage-pocket/src/pages/devtools/performance-playground.vue`（更新）
+- `ops/airi_sync_avatar_profile.mjs`（新規）
+- `ops/airi_bootstrap_run.sh`（新規）
+- `ops/windows/airi_windows_bootstrap_run.ps1`（新規）
+- docs更新（`README.md`, `ops/AIRI_WINDOWS_QUICKSTART.md`, `ops/AIRI_APILESS_MVP_RUNBOOK.md`, `ops/AIRI_AVATAR_EXPRESSION_TUNING.md`）
+
+実施:
+- `ops/AIRI_AVATAR_EXPRESSION_PROFILE_V1.json` を `apps/stage-web/public/bridge/output/avatar-expression-profile.json` に同期する導線を追加。
+- Stage / playground で profile を読み込み、emotion適用時に以下を直接反映:
+  - intensity clamp（min/max）
+  - motion cooldown（連続切替抑制）
+  - neutralAfterMs（自動neutral復帰）
+- clone直後ワンコマンドでセットアップ+起動可能にした。
+
+ローカル検証（mock相当・手元）:
+- `node ops/airi_sync_avatar_profile.mjs` 実行成功
+- `bash ops/airi_ctl.sh restart` 後、`http://127.0.0.1:5173/` が `200` 応答
+- `http://127.0.0.1:5173/bridge/output/avatar-expression-profile.json` が配信されることを確認
