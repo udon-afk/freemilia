@@ -1,0 +1,17 @@
+【販売開始 直前チェック】
+1) BOOTH商品ページに `booth_description_targeted_creator.md` を貼り付け
+2) 価格を先行980円に設定（先着20の文言あり）
+3) zipファイル `products/booth-template-pack/release/openclaw-template-pack-v0.1.0.zip` をアップロード
+4) note告知文の販売リンクをBOOTH URLに置換
+5) 免責（成果保証なし）とサポート範囲を再確認
+
+【販売開始後 24hで見る指標】
+- PV
+- クリック
+- 購入
+- 問い合わせ
+
+【次アクション判定】
+- 購入>=1件: そのまま継続
+- 購入0件かつクリック低: タイトルと導入文を改善
+- クリック高・購入低: 商品説明の期待値調整
