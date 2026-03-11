@@ -1,7 +1,7 @@
 @startuml
-' Daily report interview algorithm (v18)
+' Daily report interview algorithm (v19)
 
-title Daily Report Hearing Sequence (5min / v18)
+title Daily Report Hearing Sequence (5min / v19)
 
 actor User as U
 participant "Dialogue LLM" as L
@@ -24,6 +24,11 @@ alt Ambiguous (e.g. "いろいろやった")
   L -> U: minimal concrete input\n"対象/変化" (10-20 chars)
   U --> L: concrete snippet
   L -> S: set subject + impact (if available)
+  alt next or blocker missing
+    L -> U: bundled follow-up\n"明日の予定や現状の詰まりはありますか？"
+    U --> L: next/blocker info
+    L -> S: update next + blocker
+  end
 else Short (e.g. "進んだ" / "普通")
   L -> U: Q1 current task first\n"何のタスクが進んだ？(単語でOK)"
   U --> L: subject task
@@ -63,15 +68,23 @@ alt impact missing or weak
   L -> S: update impact
 end
 
-L -> S: 4-question gate check\n(required slots 4/4?)
+loop until required slots 4/4 OR timeout(C)
+  L -> S: gate check\n(required slots complete?)
+  alt required slots not done
+    L -> U: targeted補完質問 (missing slot priority)
+    U --> L: 補完回答
+    L -> S: update missing slot
+  else required slots done
+    break
+  end
+end
+
 alt required slots done
   L -> U: optional done detail 1 item (if time > 60s)
   U --> L: done detail
   L -> S: set done detail
-else required slots not done
-  L -> U: targeted補完質問 (1問)
-  U --> L: 補完回答
-  L -> S: update missing slot
+else timeout reached with missing slots
+  L -> S: mark partial mode\n(missing slots noted for summary)
 end
 
 note over L,S
@@ -80,10 +93,11 @@ A = required slots complete (subject, impact, next+deadline, blocker)
 B = done detail extracted OR no-additional-detail confirmed
 C = timeout guard (>=5 min OR remaining < 60s)
 Close when (A and B) or (A and C)
+Escape route: if C=true and A=false, allow partial report generation with explicit missing-slot notes.
 end note
 
-L -> S: early-close check ((A and B) or (A and C))
-L -> F: build adaptive daily report format
+L -> S: early-close check
+L -> F: build adaptive daily report format\n(full if A=true / partial if A=false and C=true)
 F --> L: report draft
 L -> U: summary + final correction (max 1 point)
 U --> L: correction or OK
