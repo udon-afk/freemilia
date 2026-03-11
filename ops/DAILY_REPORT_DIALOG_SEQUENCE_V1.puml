@@ -1,7 +1,7 @@
 @startuml
-' Daily report interview algorithm (v17)
+' Daily report interview algorithm (v18)
 
-title Daily Report Hearing Sequence (5min / v17)
+title Daily Report Hearing Sequence (5min / v18)
 
 actor User as U
 participant "Dialogue LLM" as L
@@ -10,7 +10,8 @@ participant "Report Formatter" as F
 
 note over L
 Timebox: ~5 minutes
-Priority: next+deadline -> blocker -> impact -> done
+Required MVS slots (4): subject, impact, next+deadline, blocker
+Priority: subject -> next+deadline -> blocker -> impact
 end note
 
 L -> U: Kickoff: "今日はやったことを短く教えてください"
@@ -22,25 +23,35 @@ alt Ambiguous (e.g. "いろいろやった")
   U --> L: selected choices
   L -> U: minimal concrete input\n"対象/変化" (10-20 chars)
   U --> L: concrete snippet
+  L -> S: set subject + impact (if available)
 else Short (e.g. "進んだ" / "普通")
-  L -> U: Q1 next+deadline (2 choices)
+  L -> U: Q1 current task first\n"何のタスクが進んだ？(単語でOK)"
+  U --> L: subject task
+  L -> S: set subject
+  L -> U: Q2 next+deadline (2 choices)
   U --> L: next selected
   L -> S: set next
-  L -> U: Q2 blocker? (yes/no)
+  L -> U: Q3 blocker? (yes/no)
   U --> L: blocker status
   L -> S: set blocker
-  L -> U: Q3 evidence? (can say / unclear)
+  L -> U: Q4 evidence? (can say / unclear)
   U --> L: evidence status
   alt evidence unclear
     L -> U: evidence type (code/docs/comms/decision)
     U --> L: evidence type
   end
 else Normal
-  L -> U: ask for top task + progress
+  L -> U: ask task + progress
   U --> L: task/progress
+  L -> S: set subject + impact(if available)
+  alt next or blocker missing
+    L -> U: bundled follow-up\n"明日の予定や現状の詰まりはありますか？"
+    U --> L: next/blocker info
+    L -> S: update next + blocker
+  end
 end
 
-L -> S: fill required slots (next, blocker, impact)
+L -> S: fill required slots\n(subject, impact, next, blocker)
 
 alt impact missing or weak
   L -> U: D48 impact recovery\n"価値があったのは? 準備/リスク低減/判断/共有/なし"
@@ -52,18 +63,26 @@ alt impact missing or weak
   L -> S: update impact
 end
 
-L -> S: 4-question gate check\n(required 3/3?)
+L -> S: 4-question gate check\n(required slots 4/4?)
 alt required slots done
-  L -> U: optional done 1 item (if time > 60s)
-  U --> L: done item
-  L -> S: set done
+  L -> U: optional done detail 1 item (if time > 60s)
+  U --> L: done detail
+  L -> S: set done detail
 else required slots not done
   L -> U: targeted補完質問 (1問)
-  U --> L:補完回答
+  U --> L: 補完回答
   L -> S: update missing slot
 end
 
-L -> S: early-close check (A+B or A+C)
+note over L,S
+Early-close condition definition:
+A = required slots complete (subject, impact, next+deadline, blocker)
+B = done detail extracted OR no-additional-detail confirmed
+C = timeout guard (>=5 min OR remaining < 60s)
+Close when (A and B) or (A and C)
+end note
+
+L -> S: early-close check ((A and B) or (A and C))
 L -> F: build adaptive daily report format
 F --> L: report draft
 L -> U: summary + final correction (max 1 point)
