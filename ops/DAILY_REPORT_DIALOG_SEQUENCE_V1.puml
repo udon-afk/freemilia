@@ -1,0 +1,73 @@
+@startuml
+' Daily report interview algorithm (v17)
+
+title Daily Report Hearing Sequence (5min / v17)
+
+actor User as U
+participant "Dialogue LLM" as L
+participant "Slot Manager\n(MVS)" as S
+participant "Report Formatter" as F
+
+note over L
+Timebox: ~5 minutes
+Priority: next+deadline -> blocker -> impact -> done
+end note
+
+L -> U: Kickoff: "今日はやったことを短く教えてください"
+U --> L: Initial answer (normal / short / ambiguous)
+L -> S: classify input type
+
+alt Ambiguous (e.g. "いろいろやった")
+  L -> U: 2-stage choice\n1) activity domain (4 choices)\n2) outcome type (4 choices)
+  U --> L: selected choices
+  L -> U: minimal concrete input\n"対象/変化" (10-20 chars)
+  U --> L: concrete snippet
+else Short (e.g. "進んだ" / "普通")
+  L -> U: Q1 next+deadline (2 choices)
+  U --> L: next selected
+  L -> S: set next
+  L -> U: Q2 blocker? (yes/no)
+  U --> L: blocker status
+  L -> S: set blocker
+  L -> U: Q3 evidence? (can say / unclear)
+  U --> L: evidence status
+  alt evidence unclear
+    L -> U: evidence type (code/docs/comms/decision)
+    U --> L: evidence type
+  end
+else Normal
+  L -> U: ask for top task + progress
+  U --> L: task/progress
+end
+
+L -> S: fill required slots (next, blocker, impact)
+
+alt impact missing or weak
+  L -> U: D48 impact recovery\n"価値があったのは? 準備/リスク低減/判断/共有/なし"
+  U --> L: selected value
+  alt still none
+    L -> U: D53 retry once
+    U --> L: retry result
+  end
+  L -> S: update impact
+end
+
+L -> S: 4-question gate check\n(required 3/3?)
+alt required slots done
+  L -> U: optional done 1 item (if time > 60s)
+  U --> L: done item
+  L -> S: set done
+else required slots not done
+  L -> U: targeted補完質問 (1問)
+  U --> L:補完回答
+  L -> S: update missing slot
+end
+
+L -> S: early-close check (A+B or A+C)
+L -> F: build adaptive daily report format
+F --> L: report draft
+L -> U: summary + final correction (max 1 point)
+U --> L: correction or OK
+L -> S: finalize
+
+@enduml
