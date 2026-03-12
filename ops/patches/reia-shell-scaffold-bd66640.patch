@@ -1,0 +1,1546 @@
+From bd666403bbd7d8ca67ab601a409657b39e428828 Mon Sep 17 00:00:00 2001
+From: OpenClaw Agent <agent@openclaw.local>
+Date: Thu, 12 Mar 2026 12:50:32 +0900
+Subject: [PATCH] feat: scaffold reia shell web+pwa and gateway mock
+
+---
+ README.reia-shell.md                  |  60 ++++
+ apps/reia-shell/index.html            |  13 +
+ apps/reia-shell/package.json          |  25 ++
+ apps/reia-shell/src/App.tsx           |  97 ++++++
+ apps/reia-shell/src/main.tsx          |  10 +
+ apps/reia-shell/src/styles.css        |  79 +++++
+ apps/reia-shell/tsconfig.json         |  15 +
+ apps/reia-shell/vite.config.ts        |  25 ++
+ package.json                          |   1 +
+ packages/reia-events/README.md        |   3 +
+ packages/reia-events/package.json     |  27 ++
+ packages/reia-events/src/index.ts     |  24 ++
+ packages/reia-events/tsconfig.json    |  10 +
+ packages/reia-events/tsdown.config.ts |   8 +
+ pnpm-lock.yaml                        | 471 ++++++++++++++++++--------
+ scripts/dev-reia.sh                   |   7 +
+ services/reia-gateway/package.json    |  24 ++
+ services/reia-gateway/src/index.ts    |  40 +++
+ services/reia-gateway/tsconfig.json   |  12 +
+ 19 files changed, 801 insertions(+), 150 deletions(-)
+ create mode 100644 README.reia-shell.md
+ create mode 100644 apps/reia-shell/index.html
+ create mode 100644 apps/reia-shell/package.json
+ create mode 100644 apps/reia-shell/src/App.tsx
+ create mode 100644 apps/reia-shell/src/main.tsx
+ create mode 100644 apps/reia-shell/src/styles.css
+ create mode 100644 apps/reia-shell/tsconfig.json
+ create mode 100644 apps/reia-shell/vite.config.ts
+ create mode 100644 packages/reia-events/README.md
+ create mode 100644 packages/reia-events/package.json
+ create mode 100644 packages/reia-events/src/index.ts
+ create mode 100644 packages/reia-events/tsconfig.json
+ create mode 100644 packages/reia-events/tsdown.config.ts
+ create mode 100755 scripts/dev-reia.sh
+ create mode 100644 services/reia-gateway/package.json
+ create mode 100644 services/reia-gateway/src/index.ts
+ create mode 100644 services/reia-gateway/tsconfig.json
+
+diff --git a/README.reia-shell.md b/README.reia-shell.md
+new file mode 100644
+index 0000000..47a4f0b
+--- /dev/null
++++ b/README.reia-shell.md
+@@ -0,0 +1,60 @@
++# Reia Shell Minimal Scaffold (Web/PWA first)
++
++## What is included
++
++- `apps/reia-shell`: Vite + React + TypeScript frontend
++  - Mobile-friendly UI
++  - Chat input/output
++  - Avatar state panel
++  - PWA-ready manifest via `vite-plugin-pwa`
++- `services/reia-gateway`: Node + Express mock gateway
++  - `GET /health`
++  - `POST /api/chat` mock (echo reply + avatar event)
++- `packages/reia-events`: shared avatar event schema (Zod)
++
++## Local run (recommended)
++
++```bash
++pnpm install
++pnpm dev:reia
++```
++
++This starts both frontend and gateway.
++
++- Frontend: `http://localhost:5177`
++- Gateway: `http://localhost:8787`
++
++## Manual run
++
++Terminal A:
++
++```bash
++pnpm -F @proj-airi/reia-gateway dev
++```
++
++Terminal B:
++
++```bash
++pnpm -F @proj-airi/reia-shell dev
++```
++
++## Mobile browser test (same LAN)
++
++1. Start with `pnpm dev:reia`
++2. Find dev machine IP (example `192.168.1.20`)
++3. Open on phone:
++   - `http://192.168.1.20:5177`
++4. If gateway URL differs, set env:
++
++```bash
++VITE_REIA_GATEWAY_URL=http://192.168.1.20:8787 pnpm -F @proj-airi/reia-shell dev
++```
++
++## API quick check
++
++```bash
++curl http://localhost:8787/health
++curl -X POST http://localhost:8787/api/chat \
++  -H 'Content-Type: application/json' \
++  -d '{"message":"hello"}'
++```
+diff --git a/apps/reia-shell/index.html b/apps/reia-shell/index.html
+new file mode 100644
+index 0000000..191fd6f
+--- /dev/null
++++ b/apps/reia-shell/index.html
+@@ -0,0 +1,13 @@
++<!doctype html>
++<html lang="en">
++  <head>
++    <meta charset="UTF-8" />
++    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
++    <meta name="theme-color" content="#0f172a" />
++    <title>Reia Shell</title>
++  </head>
++  <body>
++    <div id="root"></div>
++    <script type="module" src="/src/main.tsx"></script>
++  </body>
++</html>
+diff --git a/apps/reia-shell/package.json b/apps/reia-shell/package.json
+new file mode 100644
+index 0000000..48250f0
+--- /dev/null
++++ b/apps/reia-shell/package.json
+@@ -0,0 +1,25 @@
++{
++  "name": "@proj-airi/reia-shell",
++  "private": true,
++  "version": "0.0.0",
++  "type": "module",
++  "scripts": {
++    "dev": "vite",
++    "build": "tsc -b && vite build",
++    "preview": "vite preview",
++    "typecheck": "tsc --noEmit"
++  },
++  "dependencies": {
++    "@proj-airi/reia-events": "workspace:^",
++    "react": "^19.1.1",
++    "react-dom": "^19.1.1"
++  },
++  "devDependencies": {
++    "@types/react": "^19.1.2",
++    "@types/react-dom": "^19.1.2",
++    "@vitejs/plugin-react": "^5.0.4",
++    "typescript": "^5.9.3",
++    "vite": "catalog:",
++    "vite-plugin-pwa": "^1.1.0"
++  }
++}
+diff --git a/apps/reia-shell/src/App.tsx b/apps/reia-shell/src/App.tsx
+new file mode 100644
+index 0000000..994a2bb
+--- /dev/null
++++ b/apps/reia-shell/src/App.tsx
+@@ -0,0 +1,97 @@
++import { useMemo, useState } from 'react'
++import type { FormEvent } from 'react'
++import { avatarCommandEventSchema } from '@proj-airi/reia-events'
++import type { AvatarCommandEvent } from '@proj-airi/reia-events'
++
++type ChatMessage = {
++  role: 'user' | 'assistant'
++  text: string
++}
++
++const gatewayBase = import.meta.env.VITE_REIA_GATEWAY_URL ?? 'http://localhost:8787'
++
++export default function App() {
++  const [input, setInput] = useState('')
++  const [loading, setLoading] = useState(false)
++  const [messages, setMessages] = useState<ChatMessage[]>([])
++  const [avatarEvent, setAvatarEvent] = useState<AvatarCommandEvent | null>(null)
++  const [error, setError] = useState<string | null>(null)
++
++  const avatarMood = useMemo(() => avatarEvent?.payload.mood ?? 'idle', [avatarEvent])
++
++  async function onSubmit(event: FormEvent<HTMLFormElement>) {
++    event.preventDefault()
++    if (!input.trim() || loading)
++      return
++
++    const text = input.trim()
++    setInput('')
++    setError(null)
++    setLoading(true)
++    setMessages(prev => [...prev, { role: 'user', text }])
++
++    try {
++      const response = await fetch(`${gatewayBase}/api/chat`, {
++        method: 'POST',
++        headers: { 'Content-Type': 'application/json' },
++        body: JSON.stringify({ message: text }),
++      })
++
++      const data = await response.json()
++
++      if (!response.ok)
++        throw new Error(data?.error?.formErrors?.[0] ?? 'Gateway request failed')
++
++      const parsedEvent = avatarCommandEventSchema.parse(data.avatarEvent)
++      setAvatarEvent(parsedEvent)
++      setMessages(prev => [...prev, { role: 'assistant', text: data.reply }])
++    }
++    catch (e) {
++      const message = e instanceof Error ? e.message : 'Unknown error'
++      setError(message)
++    }
++    finally {
++      setLoading(false)
++    }
++  }
++
++  return (
++    <main className="layout">
++      <header>
++        <h1>Reia Shell</h1>
++        <p>VPS(OpenClaw) connected gateway + avatar panel for web/mobile</p>
++      </header>
++
++      <section className="panel">
++        <h2>Avatar State</h2>
++        <p><strong>Mood:</strong> {avatarMood}</p>
++        <p><strong>Last Event:</strong> {avatarEvent?.type ?? 'none'}</p>
++        <pre>{avatarEvent ? JSON.stringify(avatarEvent, null, 2) : 'No events yet'}</pre>
++      </section>
++
++      <section className="panel chat">
++        <h2>Chat</h2>
++        <div className="messages">
++          {messages.length === 0 && <p className="placeholder">Send a message to start.</p>}
++          {messages.map((message, idx) => (
++            <p key={`${message.role}-${idx}`} className={`bubble ${message.role}`}>
++              <strong>{message.role === 'user' ? 'You' : 'Reia'}:</strong> {message.text}
++            </p>
++          ))}
++        </div>
++
++        <form onSubmit={onSubmit} className="composer">
++          <input
++            value={input}
++            onChange={e => setInput(e.target.value)}
++            placeholder="Type message..."
++            disabled={loading}
++          />
++          <button type="submit" disabled={loading}>{loading ? 'Sending...' : 'Send'}</button>
++        </form>
++
++        {error && <p className="error">{error}</p>}
++      </section>
++    </main>
++  )
++}
+diff --git a/apps/reia-shell/src/main.tsx b/apps/reia-shell/src/main.tsx
+new file mode 100644
+index 0000000..c31d4c6
+--- /dev/null
++++ b/apps/reia-shell/src/main.tsx
+@@ -0,0 +1,10 @@
++import { StrictMode } from 'react'
++import { createRoot } from 'react-dom/client'
++import App from './App'
++import './styles.css'
++
++createRoot(document.getElementById('root')!).render(
++  <StrictMode>
++    <App />
++  </StrictMode>,
++)
+diff --git a/apps/reia-shell/src/styles.css b/apps/reia-shell/src/styles.css
+new file mode 100644
+index 0000000..5fa4f55
+--- /dev/null
++++ b/apps/reia-shell/src/styles.css
+@@ -0,0 +1,79 @@
++:root {
++  color-scheme: dark;
++  font-family: Inter, system-ui, sans-serif;
++}
++
++body {
++  margin: 0;
++  background: #020617;
++  color: #e2e8f0;
++}
++
++.layout {
++  max-width: 920px;
++  margin: 0 auto;
++  padding: 16px;
++  display: grid;
++  gap: 12px;
++}
++
++.panel {
++  background: #0f172a;
++  border: 1px solid #1e293b;
++  border-radius: 12px;
++  padding: 12px;
++}
++
++.messages {
++  max-height: 260px;
++  overflow: auto;
++  display: grid;
++  gap: 8px;
++  margin-bottom: 12px;
++}
++
++.bubble {
++  margin: 0;
++  padding: 8px 10px;
++  border-radius: 10px;
++  background: #1e293b;
++}
++
++.bubble.user {
++  background: #1d4ed8;
++}
++
++.composer {
++  display: grid;
++  grid-template-columns: 1fr auto;
++  gap: 8px;
++}
++
++input, button {
++  border-radius: 10px;
++  border: 1px solid #334155;
++  padding: 10px;
++  background: #0b1220;
++  color: #e2e8f0;
++}
++
++button {
++  background: #2563eb;
++  border-color: #3b82f6;
++}
++
++.error {
++  color: #fca5a5;
++}
++
++pre {
++  white-space: pre-wrap;
++  word-break: break-word;
++  font-size: 12px;
++}
++
++@media (max-width: 640px) {
++  .layout {
++    padding: 12px;
++  }
++}
+diff --git a/apps/reia-shell/tsconfig.json b/apps/reia-shell/tsconfig.json
+new file mode 100644
+index 0000000..71d5901
+--- /dev/null
++++ b/apps/reia-shell/tsconfig.json
+@@ -0,0 +1,15 @@
++{
++  "extends": "../../tsconfig.json",
++  "compilerOptions": {
++    "target": "ES2022",
++    "lib": ["ES2022", "DOM", "DOM.Iterable"],
++    "module": "ESNext",
++    "moduleResolution": "Bundler",
++    "jsx": "react-jsx",
++    "types": ["vite/client"],
++    "strict": true,
++    "noEmit": true,
++    "skipLibCheck": true
++  },
++  "include": ["src", "vite.config.ts"]
++}
+diff --git a/apps/reia-shell/vite.config.ts b/apps/reia-shell/vite.config.ts
+new file mode 100644
+index 0000000..ec00ffd
+--- /dev/null
++++ b/apps/reia-shell/vite.config.ts
+@@ -0,0 +1,25 @@
++import { defineConfig } from 'vite'
++import react from '@vitejs/plugin-react'
++import { VitePWA } from 'vite-plugin-pwa'
++
++export default defineConfig({
++  plugins: [
++    react(),
++    VitePWA({
++      registerType: 'autoUpdate',
++      manifest: {
++        name: 'Reia Shell',
++        short_name: 'Reia',
++        theme_color: '#0f172a',
++        background_color: '#020617',
++        display: 'standalone',
++        start_url: '/',
++        icons: [],
++      },
++    }),
++  ],
++  server: {
++    host: true,
++    port: 5177,
++  },
++})
+diff --git a/package.json b/package.json
+index a60c611..5ab82c6 100644
+--- a/package.json
++++ b/package.json
+@@ -20,6 +20,7 @@
+     "dev:pocket": "pnpm -rF @proj-airi/stage-pocket run dev:web",
+     "dev:server": "pnpm -rF @proj-airi/server-runtime run dev",
+     "dev:tamagotchi": "pnpm -rF @proj-airi/stage-tamagotchi run dev",
++    "dev:reia": "./scripts/dev-reia.sh",
+     "dev:apps": "pnpm -rF=\"./apps/*\" run --parallel dev",
+     "dev:packages": "pnpm -rF=\"./packages/*\" --parallel run dev",
+     "build": "turbo run build -F=\"./packages/*\" -F=\"./apps/*\"",
+diff --git a/packages/reia-events/README.md b/packages/reia-events/README.md
+new file mode 100644
+index 0000000..2cda699
+--- /dev/null
++++ b/packages/reia-events/README.md
+@@ -0,0 +1,3 @@
++# @proj-airi/reia-events
++
++Shared schema package for Reia avatar command events.
+diff --git a/packages/reia-events/package.json b/packages/reia-events/package.json
+new file mode 100644
+index 0000000..899e5c5
+--- /dev/null
++++ b/packages/reia-events/package.json
+@@ -0,0 +1,27 @@
++{
++  "name": "@proj-airi/reia-events",
++  "type": "module",
++  "private": true,
++  "description": "Shared event schema for Reia avatar commands",
++  "license": "MIT",
++  "exports": {
++    ".": {
++      "types": "./src/index.ts",
++      "default": "./src/index.ts"
++    }
++  },
++  "main": "./src/index.ts",
++  "types": "./src/index.ts",
++  "files": [
++    "src",
++    "package.json",
++    "README.md"
++  ],
++  "scripts": {
++    "build": "tsdown",
++    "dev": "tsdown --watch"
++  },
++  "dependencies": {
++    "zod": "catalog:"
++  }
++}
+diff --git a/packages/reia-events/src/index.ts b/packages/reia-events/src/index.ts
+new file mode 100644
+index 0000000..b7a53f0
+--- /dev/null
++++ b/packages/reia-events/src/index.ts
+@@ -0,0 +1,24 @@
++import { z } from 'zod'
++
++export const avatarMoodSchema = z.enum(['idle', 'listening', 'thinking', 'speaking', 'error'])
++
++export const avatarCommandEventSchema = z.object({
++  type: z.enum(['avatar/state', 'avatar/speak', 'avatar/gesture']),
++  timestamp: z.string().datetime(),
++  payload: z.object({
++    mood: avatarMoodSchema.optional(),
++    text: z.string().optional(),
++    gesture: z.enum(['wave', 'nod', 'blink']).optional(),
++  }),
++})
++
++export type AvatarMood = z.infer<typeof avatarMoodSchema>
++export type AvatarCommandEvent = z.infer<typeof avatarCommandEventSchema>
++
++export function createAvatarStateEvent(mood: AvatarMood, text?: string): AvatarCommandEvent {
++  return avatarCommandEventSchema.parse({
++    type: 'avatar/state',
++    timestamp: new Date().toISOString(),
++    payload: { mood, text },
++  })
++}
+diff --git a/packages/reia-events/tsconfig.json b/packages/reia-events/tsconfig.json
+new file mode 100644
+index 0000000..2ebb0fa
+--- /dev/null
++++ b/packages/reia-events/tsconfig.json
+@@ -0,0 +1,10 @@
++{
++  "extends": "../../tsconfig.json",
++  "compilerOptions": {
++    "composite": false,
++    "declaration": true,
++    "declarationMap": true,
++    "emitDeclarationOnly": false
++  },
++  "include": ["src"]
++}
+diff --git a/packages/reia-events/tsdown.config.ts b/packages/reia-events/tsdown.config.ts
+new file mode 100644
+index 0000000..f244132
+--- /dev/null
++++ b/packages/reia-events/tsdown.config.ts
+@@ -0,0 +1,8 @@
++import { defineConfig } from 'tsdown'
++
++export default defineConfig({
++  entry: ['./src/index.ts'],
++  format: ['esm'],
++  dts: true,
++  clean: true,
++})
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index 7e88366..0e84386 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -463,6 +463,37 @@ importers:
+         specifier: ^3.1.8
+         version: 3.2.5(typescript@5.9.3)
+ 
++  apps/reia-shell:
++    dependencies:
++      '@proj-airi/reia-events':
++        specifier: workspace:^
++        version: link:../../packages/reia-events
++      react:
++        specifier: ^19.1.1
++        version: 19.2.3
++      react-dom:
++        specifier: ^19.1.1
++        version: 19.2.4(react@19.2.3)
++    devDependencies:
++      '@types/react':
++        specifier: ^19.1.2
++        version: 19.2.14
++      '@types/react-dom':
++        specifier: ^19.1.2
++        version: 19.2.3(@types/react@19.2.14)
++      '@vitejs/plugin-react':
++        specifier: ^5.0.4
++        version: 5.1.4(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
++      typescript:
++        specifier: ^5.9.3
++        version: 5.9.3
++      vite:
++        specifier: 'catalog:'
++        version: 8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
++      vite-plugin-pwa:
++        specifier: ^1.1.0
++        version: 1.2.0(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(workbox-build@7.4.0(@types/babel__core@7.20.5))(workbox-window@7.4.0)
++
+   apps/server:
+     dependencies:
+       '@better-auth/drizzle-adapter':
+@@ -530,7 +561,7 @@ importers:
+         version: link:../../packages/server-schema
+       better-auth:
+         specifier: ^1.4.19
+-        version: 1.5.3(@better-auth/drizzle-adapter@1.5.3(@better-auth/core@1.5.3(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1))(@better-auth/utils@0.3.1)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)))(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.9)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))(pg@8.19.0)(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3))
++        version: 1.5.3(@better-auth/drizzle-adapter@1.5.3(@better-auth/core@1.5.3(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1))(@better-auth/utils@0.3.1)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)))(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.9)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))(pg@8.19.0)(react-dom@19.2.4(react@19.2.3))(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3))
+       drizzle-orm:
+         specifier: ^0.45.1
+         version: 0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)
+@@ -555,7 +586,7 @@ importers:
+     devDependencies:
+       '@better-auth/cli':
+         specifier: ^1.4.21
+-        version: 1.4.21(@better-fetch/fetch@1.1.21)(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(better-call@1.1.8(zod@4.3.6))(drizzle-kit@0.31.9)(jose@6.1.3)(kysely@0.28.11)(magicast@0.5.2)(nanostores@1.1.1)(postgres@3.4.8)(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3))
++        version: 1.4.21(@better-fetch/fetch@1.1.21)(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(better-call@1.1.8(zod@4.3.6))(drizzle-kit@0.31.9)(jose@6.1.3)(kysely@0.28.11)(magicast@0.5.2)(nanostores@1.1.1)(postgres@3.4.8)(react-dom@19.2.4(react@19.2.3))(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3))
+       drizzle-kit:
+         specifier: ^0.31.9
+         version: 0.31.9
+@@ -829,7 +860,7 @@ importers:
+         version: 1.2.44
+       '@intlify/unplugin-vue-i18n':
+         specifier: ^11.0.7
+-        version: 11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@2.80.0)(typescript@5.9.3)(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
++        version: 11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@4.59.0)(typescript@5.9.3)(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
+       '@proj-airi/iconify-meteocons':
+         specifier: 'catalog:'
+         version: 0.1.4
+@@ -889,25 +920,25 @@ importers:
+         version: 4.5.1
+       unplugin-info:
+         specifier: ^1.2.4
+-        version: 1.2.4(esbuild@0.27.2)(rollup@2.80.0)(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
++        version: 1.2.4(esbuild@0.27.2)(rollup@4.59.0)(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+       unplugin-vue-router:
+         specifier: ^0.19.2
+         version: 0.19.2(@vue/compiler-sfc@3.5.29)(vue-router@4.6.4(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
+       unplugin-yaml:
+         specifier: ^4.0.0
+-        version: 4.0.0(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@2.80.0)(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
++        version: 4.0.0(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@4.59.0)(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+       vite:
+         specifier: 'catalog:'
+         version: 8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+       vite-bundle-visualizer:
+         specifier: ^1.2.1
+-        version: 1.2.1(rolldown@1.0.0-rc.3)(rollup@2.80.0)
++        version: 1.2.1(rolldown@1.0.0-rc.3)(rollup@4.59.0)
+       vite-plugin-mkcert:
+         specifier: 'catalog:'
+         version: 1.17.10(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+       vite-plugin-pwa:
+         specifier: ^1.2.0
+-        version: 1.2.0(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(workbox-build@7.4.0)(workbox-window@7.4.0)
++        version: 1.2.0(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(workbox-build@7.4.0(@types/babel__core@7.20.5))(workbox-window@7.4.0)
+       vite-plugin-vue-devtools:
+         specifier: ^8.0.6
+         version: 8.0.6(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))
+@@ -916,7 +947,7 @@ importers:
+         version: 0.11.0(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-router@4.6.4(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
+       vue-macros:
+         specifier: ^3.1.2
+-        version: 3.1.2(@vueuse/core@14.2.1(vue@3.5.29(typescript@5.9.3)))(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@2.80.0)(typescript@5.9.3)(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.5(typescript@5.9.3))(vue@3.5.29(typescript@5.9.3))
++        version: 3.1.2(@vueuse/core@14.2.1(vue@3.5.29(typescript@5.9.3)))(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@4.59.0)(typescript@5.9.3)(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.5(typescript@5.9.3))(vue@3.5.29(typescript@5.9.3))
+       vue-tsc:
+         specifier: ^3.1.8
+         version: 3.2.5(typescript@5.9.3)
+@@ -1493,7 +1524,7 @@ importers:
+         version: 4.3.6
+       better-auth:
+         specifier: ^1.4.19
+-        version: 1.5.3(@better-auth/drizzle-adapter@1.5.3(@better-auth/core@1.5.3(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(better-call@1.3.2(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1))(@better-auth/utils@0.3.1)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)))(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.9)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))(pg@8.19.0)(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3))
++        version: 1.5.3(@better-auth/drizzle-adapter@1.5.3(@better-auth/core@1.5.3(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(better-call@1.3.2(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1))(@better-auth/utils@0.3.1)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)))(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.9)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))(pg@8.19.0)(react-dom@19.2.4(react@19.2.3))(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3))
+       colorjs.io:
+         specifier: ^0.6.1
+         version: 0.6.1
+@@ -1722,7 +1753,7 @@ importers:
+         version: 1.2.1(rolldown@1.0.0-rc.3)(rollup@4.59.0)
+       vite-plugin-pwa:
+         specifier: ^1.2.0
+-        version: 1.2.0(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(workbox-build@7.4.0)(workbox-window@7.4.0)
++        version: 1.2.0(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(workbox-build@7.4.0(@types/babel__core@7.20.5))(workbox-window@7.4.0)
+       vite-plugin-vue-devtools:
+         specifier: ^8.0.6
+         version: 8.0.6(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))
+@@ -1779,7 +1810,7 @@ importers:
+         version: 8.11.1
+       motion-v:
+         specifier: ^1.10.3
+-        version: 1.10.3(@vueuse/core@14.2.1(vue@3.5.29(typescript@5.9.3)))(react@19.2.3)(vue@3.5.29(typescript@5.9.3))
++        version: 1.10.3(@vueuse/core@14.2.1(vue@3.5.29(typescript@5.9.3)))(react-dom@19.2.4(react@19.2.3))(react@19.2.3)(vue@3.5.29(typescript@5.9.3))
+       pathe:
+         specifier: ^2.0.3
+         version: 2.0.3
+@@ -2145,6 +2176,12 @@ importers:
+         specifier: ^5.28.0
+         version: 5.28.0
+ 
++  packages/reia-events:
++    dependencies:
++      zod:
++        specifier: 'catalog:'
++        version: 4.3.6
++
+   packages/server-runtime:
+     dependencies:
+       '@guiiai/logg':
+@@ -2573,7 +2610,7 @@ importers:
+         version: 4.3.6
+       better-auth:
+         specifier: 'catalog:'
+-        version: 1.5.3(@better-auth/drizzle-adapter@1.5.3(@better-auth/core@1.5.3(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(better-call@1.3.2(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1))(@better-auth/utils@0.3.1)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)))(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.9)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))(pg@8.19.0)(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3))
++        version: 1.5.3(@better-auth/drizzle-adapter@1.5.3(@better-auth/core@1.5.3(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(better-call@1.3.2(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1))(@better-auth/utils@0.3.1)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)))(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.9)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))(pg@8.19.0)(react-dom@19.2.4(react@19.2.3))(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3))
+       culori:
+         specifier: ^4.0.2
+         version: 4.0.2
+@@ -3373,6 +3410,34 @@ importers:
+         specifier: 'catalog:'
+         version: 8.18.1
+ 
++  services/reia-gateway:
++    dependencies:
++      '@proj-airi/reia-events':
++        specifier: workspace:^
++        version: link:../../packages/reia-events
++      cors:
++        specifier: ^2.8.5
++        version: 2.8.5
++      express:
++        specifier: ^4.21.2
++        version: 4.22.1
++      zod:
++        specifier: 'catalog:'
++        version: 4.3.6
++    devDependencies:
++      '@types/cors':
++        specifier: ^2.8.19
++        version: 2.8.19
++      '@types/express':
++        specifier: ^4.17.23
++        version: 4.17.25
++      tsx:
++        specifier: 'catalog:'
++        version: 4.21.0
++      typescript:
++        specifier: ^5.9.3
++        version: 5.9.3
++
+   services/satori-bot:
+     dependencies:
+       '@guiiai/logg':
+@@ -3850,6 +3915,10 @@ packages:
+     resolution: {integrity: sha512-e7jT4DxYvIDLk1ZHmU/m/mB19rex9sv0c2ftBtjSBv+kVM/902eh0fINUzD7UwLLNR+jU585GxUJ8/EBfAM5fw==}
+     engines: {node: '>=6.9.0'}
+ 
++  '@babel/core@7.29.0':
++    resolution: {integrity: sha512-CGOfOJqWjg2qW/Mb6zNsDm+u5vFQ8DxXfbM09z69p5Z6+mE1ikP2jUXw+j42Pf1XTYED2Rni5f95npYeuwMDQA==}
++    engines: {node: '>=6.9.0'}
++
+   '@babel/generator@7.29.1':
+     resolution: {integrity: sha512-qsaF+9Qcm2Qv8SRIMMscAvG4O3lJ0F1GuMo5HR/Bp02LopNgnZBC/EkbevHFeGs4ls/oPz9v+Bsmzbkbe+0dUw==}
+     engines: {node: '>=6.9.0'}
+@@ -3953,6 +4022,10 @@ packages:
+     resolution: {integrity: sha512-HFN59MmQXGHVyYadKLVumYsA9dBFun/ldYxipEjzA4196jpLZd8UjEEBLkbEkvfYreDqJhZxYAWFPtrfhNpj4w==}
+     engines: {node: '>=6.9.0'}
+ 
++  '@babel/helpers@7.28.6':
++    resolution: {integrity: sha512-xOBvwq86HHdB7WUDTfKfT/Vuxh7gElQ+Sfti2Cy6yIWNW05P8iUslOVcZ4/sKbE+/jQaukQAdz/gf3724kYdqw==}
++    engines: {node: '>=6.9.0'}
++
+   '@babel/parser@7.27.7':
+     resolution: {integrity: sha512-qnzXzDXdr/po3bOTbTIQZ7+TxNKxpkN5IifVLXS+r7qwynkZfPyjZfE7hCXbo7IoO9TNcSyibgONsf2HauUd3Q==}
+     engines: {node: '>=6.0.0'}
+@@ -4297,6 +4370,18 @@ packages:
+     peerDependencies:
+       '@babel/core': ^7.0.0-0
+ 
++  '@babel/plugin-transform-react-jsx-self@7.27.1':
++    resolution: {integrity: sha512-6UzkCs+ejGdZ5mFFC/OCUrv028ab2fp1znZmCZjAOBKiBK2jXD1O+BPSfX8X2qjJ75fZBMSnQn3Rq2mrBJK2mw==}
++    engines: {node: '>=6.9.0'}
++    peerDependencies:
++      '@babel/core': ^7.0.0-0
++
++  '@babel/plugin-transform-react-jsx-source@7.27.1':
++    resolution: {integrity: sha512-zbwoTsBruTeKB9hSq73ha66iFeJHuaFkUbwvqElnygoNbj/jHRsSeokowZFN3CZ64IvEqcmmkVe89OPXc7ldAw==}
++    engines: {node: '>=6.9.0'}
++    peerDependencies:
++      '@babel/core': ^7.0.0-0
++
+   '@babel/plugin-transform-react-jsx@7.27.1':
+     resolution: {integrity: sha512-2KH4LWGSrJIkVf5tSiBFYuXDAoWRq2MMwgivCf+93dd0GQi8RXLjKA/0EvRnVV5G0hrHczsquXuD01L8s6dmBw==}
+     engines: {node: '>=6.9.0'}
+@@ -8665,6 +8750,21 @@ packages:
+   '@types/aws-lambda@8.10.159':
+     resolution: {integrity: sha512-SAP22WSGNN12OQ8PlCzGzRCZ7QDCwI85dQZbmpz7+mAk+L7j+wI7qnvmdKh+o7A5LaOp6QnOZ2NJphAZQTTHQg==}
+ 
++  '@types/babel__core@7.20.5':
++    resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
++
++  '@types/babel__generator@7.27.0':
++    resolution: {integrity: sha512-ufFd2Xi92OAVPYsy+P4n7/U7e68fex0+Ee8gSG9KX7eo084CWiQ4sdxktvdl0bOPupXtVJPY19zk6EwWqUQ8lg==}
++
++  '@types/babel__template@7.4.4':
++    resolution: {integrity: sha512-h/NUaSyG5EyxBIp8YRxo4RMe2/qQgvyowRwVMzhYhBCONbW8PUsg4lkFMrhgZhUe5z3L3MiLDuvyJ/CaPa2A8A==}
++
++  '@types/babel__traverse@7.28.0':
++    resolution: {integrity: sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q==}
++
++  '@types/body-parser@1.19.6':
++    resolution: {integrity: sha512-HLFeCYgz89uk22N5Qg3dvGvsv46B8GLvKKo1zKG4NybA8U2DiEO3w9lqGg29t/tfLRJpJ6iQxnVw4OnB7MoM9g==}
++
+   '@types/bunyan@1.8.11':
+     resolution: {integrity: sha512-758fRH7umIMk5qt5ELmRMff4mLDlN+xyYzC+dkPTdKwbSkJFvz6xwyScrytPU0QIBbRRwbiE8/BIg8bpajerNQ==}
+ 
+@@ -8713,6 +8813,12 @@ packages:
+   '@types/estree@1.0.8':
+     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
+ 
++  '@types/express-serve-static-core@4.19.8':
++    resolution: {integrity: sha512-02S5fmqeoKzVZCHPZid4b8JH2eM5HzQLZWN2FohQEy/0eXTq8VXZfSN6Pcr3F6N9R/vNrj7cpgbhjie6m/1tCA==}
++
++  '@types/express@4.17.25':
++    resolution: {integrity: sha512-dVd04UKsfpINUnK0yBoYHDF3xu7xVH4BuDotC/xGuycx4CgbP48X/KF/586bcObxT0HENHXEU8Nqtu6NR+eKhw==}
++
+   '@types/filesystem@0.0.36':
+     resolution: {integrity: sha512-vPDXOZuannb9FZdxgHnqSwAG/jvdGM8Wq+6N4D/d80z+D4HWH+bItqsZaVRQykAn6WEVeEkLm2oQigyHtgb0RA==}
+ 
+@@ -8737,6 +8843,9 @@ packages:
+   '@types/http-cache-semantics@4.0.4':
+     resolution: {integrity: sha512-1m0bIFVc7eJWyve9S0RnuRgcQqF/Xd5QsUZAZeQFr1Q3/p9JWoQQEqmVy+DPTNpGXwhgIetAoYF8JSc33q29QA==}
+ 
++  '@types/http-errors@2.0.5':
++    resolution: {integrity: sha512-r8Tayk8HJnX0FztbZN7oVqGccWgw98T/0neJphO91KkmOzug1KkofZURD4UaD5uH8AqcFLfdPErnBod0u71/qg==}
++
+   '@types/jsesc@2.5.1':
+     resolution: {integrity: sha512-9VN+6yxLOPLOav+7PwjZbxiID2bVaeq0ED4qSQmdQTdjnXJSaCVKTR58t15oqH1H5t8Ng2ZX1SabJVoN9Q34bw==}
+ 
+@@ -8767,6 +8876,9 @@ packages:
+   '@types/memcached@2.2.10':
+     resolution: {integrity: sha512-AM9smvZN55Gzs2wRrqeMHVP7KE8KWgCJO/XL5yCly2xF6EKa4YlbpK+cLSAH4NG/Ah64HrlegmGqW8kYws7Vxg==}
+ 
++  '@types/mime@1.3.5':
++    resolution: {integrity: sha512-/pyBZWSLD2n0dcHE3hq8s8ZvcETHtEuF+3E7XVt0Ig2nvsVQXdghHVcEkIWjy9A0wKfTn97a/PSDYohKIlnP/w==}
++
+   '@types/minimatch@3.0.5':
+     resolution: {integrity: sha512-Klz949h02Gz2uZCMGwDUSDS1YBlTdDDgbWHi+81l29tQALUtvz4rAYi5uoVhE5Lagoq6DeqAUlbrHvW/mXDgdQ==}
+ 
+@@ -8825,6 +8937,20 @@ packages:
+   '@types/plist@3.0.5':
+     resolution: {integrity: sha512-E6OCaRmAe4WDmWNsL/9RMqdkkzDCY1etutkflWk4c+AcjDU07Pcz1fQwTX0TQz+Pxqn9i4L1TU3UFpjnrcDgxA==}
+ 
++  '@types/qs@6.15.0':
++    resolution: {integrity: sha512-JawvT8iBVWpzTrz3EGw9BTQFg3BQNmwERdKE22vlTxawwtbyUSlMppvZYKLZzB5zgACXdXxbD3m1bXaMqP/9ow==}
++
++  '@types/range-parser@1.2.7':
++    resolution: {integrity: sha512-hKormJbkJqzQGhziax5PItDUTMAM9uE2XXQmM37dyd4hVM+5aVl7oVxMVUiVQn2oCQFN/LKCZdvSM0pFRqbSmQ==}
++
++  '@types/react-dom@19.2.3':
++    resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
++    peerDependencies:
++      '@types/react': ^19.2.0
++
++  '@types/react@19.2.14':
++    resolution: {integrity: sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==}
++
+   '@types/readable-stream@4.0.23':
+     resolution: {integrity: sha512-wwXrtQvbMHxCbBgjHaMGEmImFTQxxpfMOR/ZoQnXxB1woqkUbdLGFDgauo00Py9IudiaqSeiBiulSV9i6XIPig==}
+ 
+@@ -8837,6 +8963,15 @@ packages:
+   '@types/retry@0.12.0':
+     resolution: {integrity: sha512-wWKOClTTiizcZhXnPY4wikVAwmdYHp8q6DmC+EJUzAMsycb7HB32Kh9RN4+0gExjmPmZSAQjgURXIGATPegAvA==}
+ 
++  '@types/send@0.17.6':
++    resolution: {integrity: sha512-Uqt8rPBE8SY0RK8JB1EzVOIZ32uqy8HwdxCnoCOsYrvnswqmFZ/k+9Ikidlk/ImhsdvBsloHbAlewb2IEBV/Og==}
++
++  '@types/send@1.2.1':
++    resolution: {integrity: sha512-arsCikDvlU99zl1g69TcAB3mzZPpxgw0UQnaHeC1Nwb015xp8bknZv5rIfri9xTOcMuaVgvabfIRA7PSZVuZIQ==}
++
++  '@types/serve-static@1.15.10':
++    resolution: {integrity: sha512-tRs1dB+g8Itk72rlSI2ZrW6vZg0YrLI81iQSTkMmOqnqCaNr/8Ek4VwWcN5vZgCYWbg/JJSGBlUaYGAOP73qBw==}
++
+   '@types/shimmer@1.2.0':
+     resolution: {integrity: sha512-UE7oxhQLLd9gub6JKIAhDq06T0F6FnztwMNRvYgjeQSBeMc1ZG/tA47EwfduvkuQS8apbkM/lpLpWsaCeYsXVg==}
+ 
+@@ -9159,6 +9294,12 @@ packages:
+   '@vibrant/worker@4.0.4':
+     resolution: {integrity: sha512-Q/R6PYhSMWCXEk/IcXbWIzIu7Z4b58ABkGvcdF8Y+q/7g+KnpxKW5x/jfQ/6ciyYSby13wZZoEdNr3QQVgsdBQ==}
+ 
++  '@vitejs/plugin-react@5.1.4':
++    resolution: {integrity: sha512-VIcFLdRi/VYRU8OL/puL7QXMYafHmqOnwTZY50U1JPlCNj30PxCMx65c494b1K9be9hX83KVt0+gTEwTWLqToA==}
++    engines: {node: ^20.19.0 || >=22.12.0}
++    peerDependencies:
++      vite: ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
++
+   '@vitejs/plugin-vue@6.0.4':
+     resolution: {integrity: sha512-uM5iXipgYIn13UUQCZNdWkYk+sysBeA97d5mHsAoAt1u/wpN3+zxOmsVJWosuzX+IMGRzeYUNytztrYznboIkQ==}
+     engines: {node: ^20.19.0 || >=22.12.0}
+@@ -14822,6 +14963,15 @@ packages:
+     resolution: {integrity: sha512-y3bGgqKj3QBdxLbLkomlohkvsA8gdAiUQlSBJnBhfn+BPxg4bc62d8TcBW15wavDfgexCgccckhcZvywyQYPOw==}
+     hasBin: true
+ 
++  react-dom@19.2.4:
++    resolution: {integrity: sha512-AXJdLo8kgMbimY95O2aKQqsz2iWi9jMgKJhRBAxECE4IFxfcazB2LmzloIoibJI3C12IlY20+KFaLv+71bUJeQ==}
++    peerDependencies:
++      react: ^19.2.4
++
++  react-refresh@0.18.0:
++    resolution: {integrity: sha512-QgT5//D3jfjJb6Gsjxv0Slpj23ip+HtOpnNgnb2S5zU3CB26G/IDPGoy4RJB42wzFE46DRsstbW6tKHoKbhAxw==}
++    engines: {node: '>=0.10.0'}
++
+   react@19.2.3:
+     resolution: {integrity: sha512-Ku/hhYbVjOQnXDZFv2+RibmLFGwFdeeKHFcOTlrt7xplBnya5OGn/hIRDsqDiSUcfORsDC7MPxwork8jBwsIWA==}
+     engines: {node: '>=0.10.0'}
+@@ -15156,6 +15306,9 @@ packages:
+     resolution: {integrity: sha512-xAg7SOnEhrm5zI3puOOKyy1OMcMlIJZYNJY7xLBwSze0UjhPLnWfj2GF2EpT0jmzaJKIWKHLsaSSajf35bcYnA==}
+     engines: {node: '>=v12.22.7'}
+ 
++  scheduler@0.27.0:
++    resolution: {integrity: sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==}
++
+   scslre@0.3.0:
+     resolution: {integrity: sha512-3A6sD0WYP7+QrjbfNA2FN3FsOaGGFoekCVgTyypy53gPxhbkCIjtO6YWgdrfM+n/8sI8JeXZOIxsHjMTNxQ4nQ==}
+     engines: {node: ^14.0.0 || >=16.0.0}
+@@ -17557,6 +17710,26 @@ snapshots:
+     transitivePeerDependencies:
+       - supports-color
+ 
++  '@babel/core@7.29.0':
++    dependencies:
++      '@babel/code-frame': 7.29.0
++      '@babel/generator': 7.29.1
++      '@babel/helper-compilation-targets': 7.28.6
++      '@babel/helper-module-transforms': 7.28.6(@babel/core@7.29.0)
++      '@babel/helpers': 7.28.6
++      '@babel/parser': 7.29.0
++      '@babel/template': 7.28.6
++      '@babel/traverse': 7.29.0
++      '@babel/types': 7.29.0
++      '@jridgewell/remapping': 2.3.5
++      convert-source-map: 2.0.0
++      debug: 4.4.3
++      gensync: 1.0.0-beta.2
++      json5: 2.2.3
++      semver: 6.3.1
++    transitivePeerDependencies:
++      - supports-color
++
+   '@babel/generator@7.29.1':
+     dependencies:
+       '@babel/parser': 7.29.0
+@@ -17642,6 +17815,15 @@ snapshots:
+     transitivePeerDependencies:
+       - supports-color
+ 
++  '@babel/helper-module-transforms@7.28.6(@babel/core@7.29.0)':
++    dependencies:
++      '@babel/core': 7.29.0
++      '@babel/helper-module-imports': 7.28.6
++      '@babel/helper-validator-identifier': 7.28.5
++      '@babel/traverse': 7.29.0
++    transitivePeerDependencies:
++      - supports-color
++
+   '@babel/helper-optimise-call-expression@7.27.1':
+     dependencies:
+       '@babel/types': 7.29.0
+@@ -17696,6 +17878,11 @@ snapshots:
+       '@babel/template': 7.28.6
+       '@babel/types': 7.29.0
+ 
++  '@babel/helpers@7.28.6':
++    dependencies:
++      '@babel/template': 7.28.6
++      '@babel/types': 7.29.0
++
+   '@babel/parser@7.27.7':
+     dependencies:
+       '@babel/types': 7.29.0
+@@ -18070,6 +18257,16 @@ snapshots:
+     transitivePeerDependencies:
+       - supports-color
+ 
++  '@babel/plugin-transform-react-jsx-self@7.27.1(@babel/core@7.29.0)':
++    dependencies:
++      '@babel/core': 7.29.0
++      '@babel/helper-plugin-utils': 7.28.6
++
++  '@babel/plugin-transform-react-jsx-source@7.27.1(@babel/core@7.29.0)':
++    dependencies:
++      '@babel/core': 7.29.0
++      '@babel/helper-plugin-utils': 7.28.6
++
+   '@babel/plugin-transform-react-jsx@7.27.1(@babel/core@7.28.5)':
+     dependencies:
+       '@babel/core': 7.28.5
+@@ -18317,7 +18514,7 @@ snapshots:
+ 
+   '@bcoe/v8-coverage@1.0.2': {}
+ 
+-  '@better-auth/cli@1.4.21(@better-fetch/fetch@1.1.21)(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(better-call@1.1.8(zod@4.3.6))(drizzle-kit@0.31.9)(jose@6.1.3)(kysely@0.28.11)(magicast@0.5.2)(nanostores@1.1.1)(postgres@3.4.8)(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3))':
++  '@better-auth/cli@1.4.21(@better-fetch/fetch@1.1.21)(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(better-call@1.1.8(zod@4.3.6))(drizzle-kit@0.31.9)(jose@6.1.3)(kysely@0.28.11)(magicast@0.5.2)(nanostores@1.1.1)(postgres@3.4.8)(react-dom@19.2.4(react@19.2.3))(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3))':
+     dependencies:
+       '@babel/core': 7.28.5
+       '@babel/preset-react': 7.28.5(@babel/core@7.28.5)
+@@ -18329,7 +18526,7 @@ snapshots:
+       '@mrleebo/prisma-ast': 0.13.1
+       '@prisma/client': 5.22.0
+       '@types/pg': 8.16.0
+-      better-auth: 1.4.21(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.9)(drizzle-orm@0.41.0(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))(pg@8.19.0)(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3))
++      better-auth: 1.4.21(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.9)(drizzle-orm@0.41.0(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))(pg@8.19.0)(react-dom@19.2.4(react@19.2.3))(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3))
+       better-sqlite3: 12.5.0
+       c12: 3.3.3(magicast@0.5.2)
+       chalk: 5.6.2
+@@ -19763,30 +19960,6 @@ snapshots:
+ 
+   '@intlify/shared@11.2.8': {}
+ 
+-  '@intlify/unplugin-vue-i18n@11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@2.80.0)(typescript@5.9.3)(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))':
+-    dependencies:
+-      '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.3(jiti@2.6.1))
+-      '@intlify/bundle-utils': 11.0.7(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))
+-      '@intlify/shared': 11.2.8
+-      '@intlify/vue-i18n-extensions': 8.0.0(@intlify/shared@11.2.8)(@vue/compiler-dom@3.5.29)(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
+-      '@rollup/pluginutils': 5.3.0(rollup@2.80.0)
+-      '@typescript-eslint/scope-manager': 8.56.1
+-      '@typescript-eslint/typescript-estree': 8.56.1(typescript@5.9.3)
+-      debug: 4.4.3
+-      fast-glob: 3.3.3
+-      pathe: 2.0.3
+-      picocolors: 1.1.1
+-      unplugin: 2.3.11
+-      vue: 3.5.29(typescript@5.9.3)
+-    optionalDependencies:
+-      vue-i18n: 11.2.8(vue@3.5.29(typescript@5.9.3))
+-    transitivePeerDependencies:
+-      - '@vue/compiler-dom'
+-      - eslint
+-      - rollup
+-      - supports-color
+-      - typescript
+-
+   '@intlify/unplugin-vue-i18n@11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@4.59.0)(typescript@5.9.3)(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))':
+     dependencies:
+       '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.3(jiti@2.6.1))
+@@ -22175,12 +22348,14 @@ snapshots:
+     optionalDependencies:
+       rollup: 4.59.0
+ 
+-  '@rollup/plugin-babel@5.3.1(@babel/core@7.28.5)(rollup@2.80.0)':
++  '@rollup/plugin-babel@5.3.1(@babel/core@7.28.5)(@types/babel__core@7.20.5)(rollup@2.80.0)':
+     dependencies:
+       '@babel/core': 7.28.5
+       '@babel/helper-module-imports': 7.28.6
+       '@rollup/pluginutils': 3.1.0(rollup@2.80.0)
+       rollup: 2.80.0
++    optionalDependencies:
++      '@types/babel__core': 7.20.5
+     transitivePeerDependencies:
+       - supports-color
+ 
+@@ -22628,6 +22803,32 @@ snapshots:
+ 
+   '@types/aws-lambda@8.10.159': {}
+ 
++  '@types/babel__core@7.20.5':
++    dependencies:
++      '@babel/parser': 7.29.0
++      '@babel/types': 7.29.0
++      '@types/babel__generator': 7.27.0
++      '@types/babel__template': 7.4.4
++      '@types/babel__traverse': 7.28.0
++
++  '@types/babel__generator@7.27.0':
++    dependencies:
++      '@babel/types': 7.29.0
++
++  '@types/babel__template@7.4.4':
++    dependencies:
++      '@babel/parser': 7.29.0
++      '@babel/types': 7.29.0
++
++  '@types/babel__traverse@7.28.0':
++    dependencies:
++      '@babel/types': 7.29.0
++
++  '@types/body-parser@1.19.6':
++    dependencies:
++      '@types/connect': 3.4.38
++      '@types/node': 24.10.14
++
+   '@types/bunyan@1.8.11':
+     dependencies:
+       '@types/node': 24.10.14
+@@ -22678,6 +22879,20 @@ snapshots:
+ 
+   '@types/estree@1.0.8': {}
+ 
++  '@types/express-serve-static-core@4.19.8':
++    dependencies:
++      '@types/node': 24.10.14
++      '@types/qs': 6.15.0
++      '@types/range-parser': 1.2.7
++      '@types/send': 1.2.1
++
++  '@types/express@4.17.25':
++    dependencies:
++      '@types/body-parser': 1.19.6
++      '@types/express-serve-static-core': 4.19.8
++      '@types/qs': 6.15.0
++      '@types/serve-static': 1.15.10
++
+   '@types/filesystem@0.0.36':
+     dependencies:
+       '@types/filewriter': 0.0.33
+@@ -22705,6 +22920,8 @@ snapshots:
+ 
+   '@types/http-cache-semantics@4.0.4': {}
+ 
++  '@types/http-errors@2.0.5': {}
++
+   '@types/jsesc@2.5.1': {}
+ 
+   '@types/json-schema@7.0.15': {}
+@@ -22736,6 +22953,8 @@ snapshots:
+     dependencies:
+       '@types/node': 24.10.14
+ 
++  '@types/mime@1.3.5': {}
++
+   '@types/minimatch@3.0.5': {}
+ 
+   '@types/ms@2.1.0': {}
+@@ -22807,6 +23026,18 @@ snapshots:
+       xmlbuilder: 15.1.1
+     optional: true
+ 
++  '@types/qs@6.15.0': {}
++
++  '@types/range-parser@1.2.7': {}
++
++  '@types/react-dom@19.2.3(@types/react@19.2.14)':
++    dependencies:
++      '@types/react': 19.2.14
++
++  '@types/react@19.2.14':
++    dependencies:
++      csstype: 3.2.3
++
+   '@types/readable-stream@4.0.23':
+     dependencies:
+       '@types/node': 24.10.14
+@@ -22819,6 +23050,21 @@ snapshots:
+ 
+   '@types/retry@0.12.0': {}
+ 
++  '@types/send@0.17.6':
++    dependencies:
++      '@types/mime': 1.3.5
++      '@types/node': 24.10.14
++
++  '@types/send@1.2.1':
++    dependencies:
++      '@types/node': 24.10.14
++
++  '@types/serve-static@1.15.10':
++    dependencies:
++      '@types/http-errors': 2.0.5
++      '@types/node': 24.10.14
++      '@types/send': 0.17.6
++
+   '@types/shimmer@1.2.0': {}
+ 
+   '@types/slice-ansi@4.0.0': {}
+@@ -23364,6 +23610,18 @@ snapshots:
+     dependencies:
+       '@vibrant/types': 4.0.4
+ 
++  '@vitejs/plugin-react@5.1.4(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))':
++    dependencies:
++      '@babel/core': 7.29.0
++      '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.29.0)
++      '@babel/plugin-transform-react-jsx-source': 7.27.1(@babel/core@7.29.0)
++      '@rolldown/pluginutils': 1.0.0-rc.3
++      '@types/babel__core': 7.20.5
++      react-refresh: 0.18.0
++      vite: 8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
++    transitivePeerDependencies:
++      - supports-color
++
+   '@vitejs/plugin-vue@6.0.4(vite@6.4.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))':
+     dependencies:
+       '@rolldown/pluginutils': 1.0.0-rc.2
+@@ -24575,7 +24833,7 @@ snapshots:
+ 
+   best-effort-json-parser@1.2.1: {}
+ 
+-  better-auth@1.4.21(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.9)(drizzle-orm@0.41.0(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))(pg@8.19.0)(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3)):
++  better-auth@1.4.21(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.9)(drizzle-orm@0.41.0(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))(pg@8.19.0)(react-dom@19.2.4(react@19.2.3))(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3)):
+     dependencies:
+       '@better-auth/core': 1.4.21(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1)
+       '@better-auth/telemetry': 1.4.21(@better-auth/core@1.4.21(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1))
+@@ -24596,10 +24854,11 @@ snapshots:
+       drizzle-orm: 0.41.0(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)
+       pg: 8.19.0
+       react: 19.2.3
++      react-dom: 19.2.4(react@19.2.3)
+       vitest: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@24.10.14)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.1)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+       vue: 3.5.29(typescript@5.9.3)
+ 
+-  better-auth@1.5.3(@better-auth/drizzle-adapter@1.5.3(@better-auth/core@1.5.3(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1))(@better-auth/utils@0.3.1)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)))(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.9)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))(pg@8.19.0)(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3)):
++  better-auth@1.5.3(@better-auth/drizzle-adapter@1.5.3(@better-auth/core@1.5.3(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1))(@better-auth/utils@0.3.1)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)))(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.9)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))(pg@8.19.0)(react-dom@19.2.4(react@19.2.3))(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3)):
+     dependencies:
+       '@better-auth/core': 1.5.3(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(better-call@1.3.2(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1)
+       '@better-auth/kysely-adapter': 1.5.3(@better-auth/core@1.5.3(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1))(@better-auth/utils@0.3.1)(kysely@0.28.11)
+@@ -24623,12 +24882,13 @@ snapshots:
+       drizzle-orm: 0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)
+       pg: 8.19.0
+       react: 19.2.3
++      react-dom: 19.2.4(react@19.2.3)
+       vitest: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@24.10.14)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.1)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+       vue: 3.5.29(typescript@5.9.3)
+     transitivePeerDependencies:
+       - '@cloudflare/workers-types'
+ 
+-  better-auth@1.5.3(@better-auth/drizzle-adapter@1.5.3(@better-auth/core@1.5.3(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(better-call@1.3.2(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1))(@better-auth/utils@0.3.1)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)))(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.9)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))(pg@8.19.0)(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3)):
++  better-auth@1.5.3(@better-auth/drizzle-adapter@1.5.3(@better-auth/core@1.5.3(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(better-call@1.3.2(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1))(@better-auth/utils@0.3.1)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)))(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.9)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))(pg@8.19.0)(react-dom@19.2.4(react@19.2.3))(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3)):
+     dependencies:
+       '@better-auth/core': 1.5.3(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(better-call@1.3.2(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1)
+       '@better-auth/kysely-adapter': 1.5.3(@better-auth/core@1.5.3(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(better-call@1.3.2(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1))(@better-auth/utils@0.3.1)(kysely@0.28.11)
+@@ -24652,6 +24912,7 @@ snapshots:
+       drizzle-orm: 0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)
+       pg: 8.19.0
+       react: 19.2.3
++      react-dom: 19.2.4(react@19.2.3)
+       vitest: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@24.10.14)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.1)(utf-8-validate@5.0.10))(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+       vue: 3.5.29(typescript@5.9.3)
+     transitivePeerDependencies:
+@@ -26708,13 +26969,14 @@ snapshots:
+ 
+   forwarded@0.2.0: {}
+ 
+-  framer-motion@12.27.5(react@19.2.3):
++  framer-motion@12.27.5(react-dom@19.2.4(react@19.2.3))(react@19.2.3):
+     dependencies:
+       motion-dom: 12.27.5
+       motion-utils: 12.27.2
+       tslib: 2.8.1
+     optionalDependencies:
+       react: 19.2.3
++      react-dom: 19.2.4(react@19.2.3)
+ 
+   framesync@6.1.2:
+     dependencies:
+@@ -28835,10 +29097,10 @@ snapshots:
+ 
+   motion-utils@12.27.2: {}
+ 
+-  motion-v@1.10.3(@vueuse/core@14.2.1(vue@3.5.29(typescript@5.9.3)))(react@19.2.3)(vue@3.5.29(typescript@5.9.3)):
++  motion-v@1.10.3(@vueuse/core@14.2.1(vue@3.5.29(typescript@5.9.3)))(react-dom@19.2.4(react@19.2.3))(react@19.2.3)(vue@3.5.29(typescript@5.9.3)):
+     dependencies:
+       '@vueuse/core': 14.2.1(vue@3.5.29(typescript@5.9.3))
+-      framer-motion: 12.27.5(react@19.2.3)
++      framer-motion: 12.27.5(react-dom@19.2.4(react@19.2.3))(react@19.2.3)
+       hey-listen: 1.0.8
+       motion-dom: 12.27.5
+       vue: 3.5.29(typescript@5.9.3)
+@@ -30099,8 +30361,14 @@ snapshots:
+       minimist: 1.2.8
+       strip-json-comments: 2.0.1
+ 
+-  react@19.2.3:
+-    optional: true
++  react-dom@19.2.4(react@19.2.3):
++    dependencies:
++      react: 19.2.3
++      scheduler: 0.27.0
++
++  react-refresh@0.18.0: {}
++
++  react@19.2.3: {}
+ 
+   read-binary-file-arch@1.0.6:
+     dependencies:
+@@ -30460,16 +30728,6 @@ snapshots:
+       rollup: 4.59.0
+       vite: 7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+ 
+-  rollup-plugin-visualizer@5.14.0(rolldown@1.0.0-rc.3)(rollup@2.80.0):
+-    dependencies:
+-      open: 8.4.2
+-      picomatch: 4.0.3
+-      source-map: 0.7.6
+-      yargs: 17.7.2
+-    optionalDependencies:
+-      rolldown: 1.0.0-rc.3
+-      rollup: 2.80.0
+-
+   rollup-plugin-visualizer@5.14.0(rolldown@1.0.0-rc.3)(rollup@4.59.0):
+     dependencies:
+       open: 8.4.2
+@@ -30562,6 +30820,8 @@ snapshots:
+     dependencies:
+       xmlchars: 2.2.0
+ 
++  scheduler@0.27.0: {}
++
+   scslre@0.3.0:
+     dependencies:
+       '@eslint-community/regexpp': 4.12.2
+@@ -31717,14 +31977,6 @@ snapshots:
+ 
+   unpipe@1.0.0: {}
+ 
+-  unplugin-combine@2.1.3(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@2.80.0)(unplugin@2.3.11)(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)):
+-    optionalDependencies:
+-      esbuild: 0.27.2
+-      rolldown: 1.0.0-rc.3
+-      rollup: 2.80.0
+-      unplugin: 2.3.11
+-      vite: 8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+-
+   unplugin-combine@2.1.3(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@4.59.0)(unplugin@2.3.11)(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)):
+     optionalDependencies:
+       esbuild: 0.27.2
+@@ -31733,19 +31985,6 @@ snapshots:
+       unplugin: 2.3.11
+       vite: 8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+ 
+-  unplugin-info@1.2.4(esbuild@0.27.2)(rollup@2.80.0)(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)):
+-    dependencies:
+-      ci-info: 4.4.0
+-      git-url-parse: 16.1.0
+-      simple-git: 3.30.0
+-      unplugin: 2.3.11
+-    optionalDependencies:
+-      esbuild: 0.27.2
+-      rollup: 2.80.0
+-      vite: 8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+-    transitivePeerDependencies:
+-      - supports-color
+-
+   unplugin-info@1.2.4(esbuild@0.27.2)(rollup@4.59.0)(vite@6.4.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)):
+     dependencies:
+       ci-info: 4.4.0
+@@ -31882,17 +32121,6 @@ snapshots:
+       rollup: 4.59.0
+       vite: 7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+ 
+-  unplugin-yaml@4.0.0(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@2.80.0)(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)):
+-    dependencies:
+-      '@rollup/pluginutils': 5.3.0(rollup@2.80.0)
+-      unplugin: 3.0.0
+-      yaml: 2.8.2
+-    optionalDependencies:
+-      esbuild: 0.27.2
+-      rolldown: 1.0.0-rc.3
+-      rollup: 2.80.0
+-      vite: 8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+-
+   unplugin-yaml@4.0.0(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@4.59.0)(vite@6.4.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)):
+     dependencies:
+       '@rollup/pluginutils': 5.3.0(rollup@4.59.0)
+@@ -32075,17 +32303,6 @@ snapshots:
+       '@types/unist': 3.0.3
+       vfile-message: 4.0.3
+ 
+-  vite-bundle-visualizer@1.2.1(rolldown@1.0.0-rc.3)(rollup@2.80.0):
+-    dependencies:
+-      cac: 6.7.14
+-      import-from-esm: 1.3.4
+-      rollup-plugin-visualizer: 5.14.0(rolldown@1.0.0-rc.3)(rollup@2.80.0)
+-      tmp: 0.2.5
+-    transitivePeerDependencies:
+-      - rolldown
+-      - rollup
+-      - supports-color
+-
+   vite-bundle-visualizer@1.2.1(rolldown@1.0.0-rc.3)(rollup@4.59.0):
+     dependencies:
+       cac: 6.7.14
+@@ -32197,13 +32414,13 @@ snapshots:
+     transitivePeerDependencies:
+       - supports-color
+ 
+-  vite-plugin-pwa@1.2.0(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(workbox-build@7.4.0)(workbox-window@7.4.0):
++  vite-plugin-pwa@1.2.0(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(workbox-build@7.4.0(@types/babel__core@7.20.5))(workbox-window@7.4.0):
+     dependencies:
+       debug: 4.4.3
+       pretty-bytes: 6.1.1
+       tinyglobby: 0.2.15
+       vite: 8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+-      workbox-build: 7.4.0
++      workbox-build: 7.4.0(@types/babel__core@7.20.5)
+       workbox-window: 7.4.0
+     transitivePeerDependencies:
+       - supports-color
+@@ -32419,52 +32636,6 @@ snapshots:
+       '@vue/devtools-api': 6.6.4
+       vue: 3.5.29(typescript@5.9.3)
+ 
+-  vue-macros@3.1.2(@vueuse/core@14.2.1(vue@3.5.29(typescript@5.9.3)))(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@2.80.0)(typescript@5.9.3)(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.5(typescript@5.9.3))(vue@3.5.29(typescript@5.9.3)):
+-    dependencies:
+-      '@vue-macros/better-define': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/boolean-prop': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/chain-call': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/common': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/config': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/define-emit': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/define-models': 3.1.2(@vueuse/core@14.2.1(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/define-prop': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/define-props': 3.1.2(@vue-macros/reactivity-transform@3.1.2(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/define-props-refs': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/define-render': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/define-slots': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/define-stylex': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/devtools': 3.1.2(typescript@5.9.3)(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+-      '@vue-macros/export-expose': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/export-props': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/export-render': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/hoist-static': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/jsx-directive': 3.1.2(typescript@5.9.3)
+-      '@vue-macros/named-template': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/reactivity-transform': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/script-lang': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/setup-block': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/setup-component': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/setup-sfc': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/short-bind': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/short-emits': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/short-vmodel': 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      '@vue-macros/volar': 3.1.2(typescript@5.9.3)(vue-tsc@3.2.5(typescript@5.9.3))(vue@3.5.29(typescript@5.9.3))
+-      unplugin: 2.3.11
+-      unplugin-combine: 2.1.3(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@2.80.0)(unplugin@2.3.11)(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+-      unplugin-vue-define-options: 3.1.2(vue@3.5.29(typescript@5.9.3))
+-      vue: 3.5.29(typescript@5.9.3)
+-    transitivePeerDependencies:
+-      - '@rspack/core'
+-      - '@vueuse/core'
+-      - esbuild
+-      - rolldown
+-      - rollup
+-      - typescript
+-      - vite
+-      - vue-tsc
+-      - webpack
+-
+   vue-macros@3.1.2(@vueuse/core@14.2.1(vue@3.5.29(typescript@5.9.3)))(esbuild@0.27.2)(rolldown@1.0.0-rc.3)(rollup@4.59.0)(typescript@5.9.3)(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.5(typescript@5.9.3))(vue@3.5.29(typescript@5.9.3)):
+     dependencies:
+       '@vue-macros/better-define': 3.1.2(vue@3.5.29(typescript@5.9.3))
+@@ -32685,13 +32856,13 @@ snapshots:
+     dependencies:
+       workbox-core: 7.4.0
+ 
+-  workbox-build@7.4.0:
++  workbox-build@7.4.0(@types/babel__core@7.20.5):
+     dependencies:
+       '@apideck/better-ajv-errors': 0.3.6(ajv@8.18.0)
+       '@babel/core': 7.28.5
+       '@babel/preset-env': 7.29.0(@babel/core@7.28.5)
+       '@babel/runtime': 7.28.6
+-      '@rollup/plugin-babel': 5.3.1(@babel/core@7.28.5)(rollup@2.80.0)
++      '@rollup/plugin-babel': 5.3.1(@babel/core@7.28.5)(@types/babel__core@7.20.5)(rollup@2.80.0)
+       '@rollup/plugin-node-resolve': 15.3.1(rollup@2.80.0)
+       '@rollup/plugin-replace': 2.4.2(rollup@2.80.0)
+       '@rollup/plugin-terser': 0.4.4(rollup@2.80.0)
+diff --git a/scripts/dev-reia.sh b/scripts/dev-reia.sh
+new file mode 100755
+index 0000000..6058ec3
+--- /dev/null
++++ b/scripts/dev-reia.sh
+@@ -0,0 +1,7 @@
++#!/usr/bin/env bash
++set -euo pipefail
++
++pnpm -r --parallel \
++  -F @proj-airi/reia-gateway \
++  -F @proj-airi/reia-shell \
++  dev
+diff --git a/services/reia-gateway/package.json b/services/reia-gateway/package.json
+new file mode 100644
+index 0000000..900ae01
+--- /dev/null
++++ b/services/reia-gateway/package.json
+@@ -0,0 +1,24 @@
++{
++  "name": "@proj-airi/reia-gateway",
++  "type": "module",
++  "private": true,
++  "description": "Minimal gateway mock for Reia shell",
++  "license": "MIT",
++  "scripts": {
++    "dev": "tsx watch src/index.ts",
++    "start": "tsx src/index.ts",
++    "typecheck": "tsc --noEmit"
++  },
++  "dependencies": {
++    "@proj-airi/reia-events": "workspace:^",
++    "cors": "^2.8.5",
++    "express": "^4.21.2",
++    "zod": "catalog:"
++  },
++  "devDependencies": {
++    "@types/cors": "^2.8.19",
++    "@types/express": "^4.17.23",
++    "tsx": "catalog:",
++    "typescript": "^5.9.3"
++  }
++}
+diff --git a/services/reia-gateway/src/index.ts b/services/reia-gateway/src/index.ts
+new file mode 100644
+index 0000000..c49d000
+--- /dev/null
++++ b/services/reia-gateway/src/index.ts
+@@ -0,0 +1,40 @@
++import cors from 'cors'
++import express from 'express'
++import { avatarCommandEventSchema, createAvatarStateEvent } from '@proj-airi/reia-events'
++import { z } from 'zod'
++
++const app = express()
++const port = Number(process.env.PORT ?? 8787)
++
++app.use(cors())
++app.use(express.json())
++
++app.get('/health', (_req, res) => {
++  res.json({ ok: true, service: 'reia-gateway', timestamp: new Date().toISOString() })
++})
++
++const chatRequestSchema = z.object({
++  message: z.string().min(1),
++})
++
++app.post('/api/chat', (req, res) => {
++  const parsed = chatRequestSchema.safeParse(req.body)
++
++  if (!parsed.success) {
++    return res.status(400).json({ ok: false, error: parsed.error.flatten() })
++  }
++
++  const userMessage = parsed.data.message
++  const event = createAvatarStateEvent('speaking', `Echo: ${userMessage}`)
++  const validatedEvent = avatarCommandEventSchema.parse(event)
++
++  return res.json({
++    ok: true,
++    reply: `Mock reply from gateway: ${userMessage}`,
++    avatarEvent: validatedEvent,
++  })
++})
++
++app.listen(port, () => {
++  console.log(`[reia-gateway] listening on http://localhost:${port}`)
++})
+diff --git a/services/reia-gateway/tsconfig.json b/services/reia-gateway/tsconfig.json
+new file mode 100644
+index 0000000..d2dde25
+--- /dev/null
++++ b/services/reia-gateway/tsconfig.json
+@@ -0,0 +1,12 @@
++{
++  "extends": "../../tsconfig.json",
++  "compilerOptions": {
++    "target": "ES2022",
++    "module": "ESNext",
++    "moduleResolution": "Bundler",
++    "strict": true,
++    "types": ["node"],
++    "skipLibCheck": true
++  },
++  "include": ["src"]
++}
+-- 
+2.43.0
+
