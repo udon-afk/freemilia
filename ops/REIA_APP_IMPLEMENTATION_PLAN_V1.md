@@ -138,3 +138,37 @@
 - M4: Windows/Mobile方針確定（Phase 4）
 - M5: Design Exit（Phase 5）
 
+
+---
+
+## V1レビュー反映（2026-03-12 18:12 JST）
+
+実装順をMVP優先へ再配列する。
+
+### Phase M0: Companion MVPスコープ固定（新規）
+- 実施内容:
+  - 機能を chat + avatar event + one-command起動 に限定
+  - 非MVPをバックログへ退避
+- 完了条件:
+  - MVP要件4項目の合意
+  - 非MVPリスト確定
+
+### Phase M1: 最小実装（chat往復 + avatar反映）
+- 実施内容:
+  - `reia-shell` と `reia-gateway` 最小接続
+  - OpenClaw実接続1経路
+  - `reia-events` schemaでUI更新
+- 完了条件:
+  - real chat往復1経路成功
+  - avatar state更新確認
+
+### Phase M2: 起動安定化（Windows/スマホ確認）
+- 実施内容:
+  - PowerShellワンコマンド起動
+  - LANスマホ確認手順
+- 完了条件:
+  - Windowsで1コマンド起動
+  - スマホ接続確認
+
+### Phase M3: その後の拡張
+- 管理画面/会員管理/通知拡張はMVP後に段階実装

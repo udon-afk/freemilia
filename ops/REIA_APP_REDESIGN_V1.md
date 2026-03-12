@@ -232,3 +232,39 @@
 4. Windowsワンコマンド起動を標準化する
 5. スマホを主戦場として設計する
 
+
+---
+
+## 12. V1レビューでの改善反映（2026-03-12 18:12 JST）
+
+### 12.1 問題点（V1の不足）
+- V1は「会員限定コンテンツアプリ」寄りで、直近要件（REIAの会話+アバター操作）よりスコープが広すぎる。
+- MVPとして必要な「OpenClaw会話往復」「アバターイベント反映」の優先度が低く見える。
+- 実装開始時の最小成果（DoD）が曖昧。
+
+### 12.2 修正方針（スコープ再固定）
+- まず作る対象を **REIA Companion App (MVP)** に固定する。
+- MVP必須機能は以下4つのみ:
+  1) テキスト送信
+  2) OpenClaw経由の応答受信
+  3) avatar command eventの反映（mood / expression / motion）
+  4) Windowsワンコマンド起動
+- 会員課金/高度通知/管理画面拡張はMVP後へ延期。
+
+### 12.3 MVPアーキテクチャ（再定義）
+- `apps/reia-shell` : 端末UI（Web/PWA, スマホ対応）
+- `apps/reia-gateway` : OpenClaw接続API（/health, /api/chat, /api/avatar/events）
+- `packages/reia-events` : avatar command schema（共有）
+- 永続化は最初は最小（ローカル/軽量DB）で可。
+
+### 12.4 MVP完了条件（DoD）
+- 同一LANのスマホから `reia-shell` へアクセス可能。
+- `POST /api/chat` でOpenClaw往復成功（mockでなくrealを1経路）。
+- 受信応答に応じてavatar stateが更新される。
+- Windowsで起動コマンド1本（PowerShell）で開発開始できる。
+
+### 12.5 非MVP（延期）
+- 多ロール管理画面
+- 高度な会員ライフサイクル
+- 課金/配布ストア連携
+- 本格分析基盤
