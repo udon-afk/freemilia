@@ -1,0 +1,84 @@
+reia-app/
+├─ apps/
+│  ├─ reia-api/
+│  │  ├─ src/
+│  │  │  ├─ modules/
+│  │  │  │  ├─ identity/
+│  │  │  │  ├─ membership/
+│  │  │  │  ├─ content/
+│  │  │  │  ├─ notification/
+│  │  │  │  ├─ admin/
+│  │  │  │  ├─ audit/
+│  │  │  │  └─ analytics/
+│  │  │  ├─ interfaces/
+│  │  │  ├─ middleware/
+│  │  │  └─ main.ts
+│  │  ├─ test/
+│  │  └─ package.json
+│  ├─ reia-mobile/
+│  │  ├─ src/
+│  │  │  ├─ screens/
+│  │  │  ├─ components/
+│  │  │  ├─ services/
+│  │  │  ├─ state/
+│  │  │  └─ navigation/
+│  │  ├─ app.json
+│  │  └─ package.json
+│  └─ reia-admin/
+│     ├─ src/
+│     │  ├─ app/
+│     │  ├─ features/
+│     │  ├─ components/
+│     │  └─ services/
+│     └─ package.json
+├─ packages/
+│  ├─ reia-domain-identity/
+│  ├─ reia-domain-membership/
+│  ├─ reia-domain-content/
+│  ├─ reia-domain-notification/
+│  ├─ reia-domain-admin/
+│  ├─ reia-domain-audit/
+│  ├─ reia-domain-analytics/
+│  ├─ reia-shared-types/
+│  ├─ reia-shared-config/
+│  └─ reia-shared-logger/
+├─ infra/
+│  ├─ docker/
+│  │  ├─ docker-compose.yml
+│  │  └─ docker-compose.dev.yml
+│  ├─ db/
+│  │  ├─ migrations/
+│  │  └─ seeds/
+│  └─ monitoring/
+├─ ops/
+│  ├─ windows/
+│  │  ├─ reia-up.ps1
+│  │  ├─ reia-down.ps1
+│  │  └─ reia-reset.ps1
+│  ├─ runbooks/
+│  │  ├─ openclaw-ops.md
+│  │  ├─ incident-auth.md
+│  │  └─ incident-notify.md
+│  └─ policies/
+│     ├─ dependency-ban-airi.md
+│     ├─ authz-policy.md
+│     └─ audit-log-policy.md
+├─ docs/
+│  ├─ architecture/
+│  │  ├─ context-diagram.md
+│  │  ├─ module-boundary.md
+│  │  └─ data-flow.md
+│  ├─ api/
+│  │  └─ openapi.yaml
+│  └─ adr/
+│     ├─ ADR-001-no-airi-dependency.md
+│     ├─ ADR-002-modular-monolith.md
+│     └─ ADR-003-openclaw-admin-api.md
+├─ .github/
+│  └─ workflows/
+│     ├─ ci.yml
+│     └─ dependency-guard.yml
+├─ package.json
+├─ pnpm-workspace.yaml
+├─ turbo.json
+└─ README.md
