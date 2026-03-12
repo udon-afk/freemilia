@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>REIA Shell</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+      .card { border: 1px solid #ddd; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
+      .row { display: flex; gap: .5rem; }
+      input { flex: 1; padding: .6rem; }
+      button { padding: .6rem 1rem; }
+      #log { white-space: pre-wrap; font-size: .9rem; }
+      .avatar { font-size: 2rem; }
+    </style>
+  </head>
+  <body>
+    <h1>REIA Shell (S1 MVP)</h1>
+    <div class="card">
+      <div>Connection: <strong id="connection">Offline</strong></div>
+      <div>Avatar mood: <span id="mood">neutral</span> <span class="avatar" id="avatar">😐</span></div>
+    </div>
+    <div class="card">
+      <div class="row">
+        <input id="message" placeholder="Type message" />
+        <button id="send">Send</button>
+      </div>
+    </div>
+    <div class="card" id="log"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
