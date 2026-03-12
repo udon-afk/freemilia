@@ -141,34 +141,42 @@
 
 ---
 
-## V1レビュー反映（2026-03-12 18:12 JST）
+## V1レビュー反映（2026-03-12 18:30 JST / フェーズ簡略化）
 
-実装順をMVP優先へ再配列する。
+18:30版では、個人利用前提の追加改善案を反映し、実行フェーズを3段階に圧縮する。
 
-### Phase M0: Companion MVPスコープ固定（新規）
+### Phase S1: Core MVP成立（P0）
 - 実施内容:
-  - 機能を chat + avatar event + one-command起動 に限定
-  - 非MVPをバックログへ退避
-- 完了条件:
-  - MVP要件4項目の合意
-  - 非MVPリスト確定
-
-### Phase M1: 最小実装（chat往復 + avatar反映）
-- 実施内容:
-  - `reia-shell` と `reia-gateway` 最小接続
-  - OpenClaw実接続1経路
-  - `reia-events` schemaでUI更新
+  - chat往復（OpenClaw実経路）
+  - avatar event最小仕様固定（mood/expression/motion + unknown耐性）
+  - 接続状態の可視化（Connected/Reconnecting/Offline）
 - 完了条件:
   - real chat往復1経路成功
-  - avatar state更新確認
+  - avatar state更新 + unknownイベント時もUI継続
+  - 接続断/復帰時に重複送信なし
 
-### Phase M2: 起動安定化（Windows/スマホ確認）
+### Phase S2: 単独運用を成立（P1）
 - 実施内容:
-  - PowerShellワンコマンド起動
-  - LANスマホ確認手順
+  - 会話ログのローカル永続化（直近100件）
+  - 失敗時UX統一（再試行/診断/ログ）
+  - Windows one-command起動 + 事前自己診断
 - 完了条件:
-  - Windowsで1コマンド起動
-  - スマホ接続確認
+  - 再起動後に会話履歴復元
+  - API失敗時に1画面で復帰操作可能
+  - Windowsで1コマンド起動し、前提不足時に案内表示
 
-### Phase M3: その後の拡張
-- 管理画面/会員管理/通知拡張はMVP後に段階実装
+### Phase S3: 安定化と拡張入口（P2）
+- 実施内容:
+  - 最小監査ログ（JSONL）出力
+  - `dev-personal` 設定プリセット統一
+  - 非MVPバックログの再優先度付け
+- 完了条件:
+  - chat/avatar/errorの追跡が1ファイルで可能
+  - ローカル再現手順がプリセット1本で通る
+  - 次フェーズ候補（管理画面/会員/通知）に優先順位が付与済み
+
+### 補足（延期維持）
+- 管理画面の本格拡張
+- 高度会員ライフサイクル
+- 課金/配布ストア連携
+- 本格分析基盤
