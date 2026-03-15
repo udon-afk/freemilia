@@ -1,0 +1,13 @@
+id: TASK-YYYY-NNN
+title: ""
+owner: orchestrator
+priority:
+  urgency: 1
+  importance: 1
+  profitability: 1
+  deadline_impact: 1
+  context_switch_cost: 1
+status: inbox
+assigned_agents: []
+created_at: ""
+updated_at: ""

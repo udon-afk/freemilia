@@ -1,0 +1,10 @@
+status: inbox
+phase: intake
+health:
+  liveness: green
+  progress: green
+  risk: low
+last_update: ""
+blockers: []
+awaiting_approval: false
+owner: orchestrator
