@@ -1,2 +1,12 @@
-projects: []
-updated_at: 2026-03-16
+projects:
+  - id: PRJ-HEARTBEAT-ORCHESTRATION
+    name: Heartbeat Orchestration Core
+    status: active
+    priority: high
+    refs:
+      - memory-repo/operations/workflows/ai-news-daily-0700.yaml
+      - memory-repo/operations/workflows/money-daily-pipeline.yaml
+      - memory-repo/operations/workflows/money-evening-review.yaml
+      - memory-repo/operations/workflows/skill-clawhub-scout-oneshot-2026-03-26.yaml
+
+updated_at: 2026-03-26

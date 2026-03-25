@@ -1,0 +1,31 @@
+id: WF-SKILL-CLAWHUB-SCOUT-ONESHOT-2026-03-26
+name: OpenClaw有用スキル + ClawHub導入候補 調査（単発）
+status: active
+owner: orchestrator
+schedule:
+  type: one_shot
+  due: "2026-03-26T08:00:00+09:00"
+  timezone: "Asia/Tokyo"
+trigger:
+  source: heartbeat
+  condition: "now <= due and no done record"
+task:
+  type: research_report
+  summary: "OpenClaw有用スキル候補とClawHub導入候補を明日着手順で提案"
+  steps:
+    - "OpenClaw公式docs/skillsから現環境で使える候補を抽出"
+    - "ClawHubへ導入可能な機能候補を抽出"
+    - "候補名 / できること / 導入難易度(低中高) / 明日すぐ着手順 で整理"
+    - "明日の即実装トップ3を提示"
+output:
+  destination: "channel:1472610044687290439"
+  format: "short_bullets"
+state:
+  last_run_at: null
+  last_status: pending
+  dedupe_key: "skill-clawhub-scout-oneshot-2026-03-26"
+cleanup:
+  after_done: true
+  action: "set status=done and remove workflow file"
+approval:
+  required: false
