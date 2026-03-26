@@ -1,0 +1,28 @@
+body{margin:0;font-family:system-ui,sans-serif;background:#0b1220;color:#e5e7eb}
+.topbar{height:58px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;background:#111a2f;border-bottom:1px solid #22304d}
+.layout{display:grid;grid-template-columns:240px 1fr;min-height:calc(100vh - 58px)}
+.sidebar{background:#0f172a;border-right:1px solid #22304d;padding:14px}
+.sidebar h3{margin:6px 0 10px;color:#93c5fd}
+.nav{display:block;width:100%;text-align:left;padding:10px;border:1px solid #243b64;background:#111c33;color:#dbeafe;border-radius:8px;margin-bottom:8px;cursor:pointer}
+.nav.active{background:#1d4ed8;border-color:#3b82f6;color:white}
+.nav.link{text-decoration:none;cursor:pointer}
+.content{padding:16px;max-width:1000px}
+.view{display:none}.view.show{display:block}
+.card{background:#131a2e;border:1px solid #243057;padding:12px;border-radius:12px;margin-bottom:12px}
+.row{display:flex;gap:8px}
+.row.wrap{flex-wrap:wrap}
+input,textarea,button{font:inherit;border-radius:8px;border:none}
+input,textarea{flex:1;padding:10px;background:#334155;color:#f8fafc}
+button{padding:10px 14px;background:#22c55e;color:#052e16;cursor:pointer;font-weight:700}
+ul{list-style:none;padding:0;margin:10px 0 0}
+li{display:flex;justify-content:space-between;align-items:center;background:#334155;margin:6px 0;padding:8px 10px;border-radius:8px}
+li.done span{text-decoration:line-through;color:#94a3b8}
+li .actions{display:flex;gap:6px}
+li .actions button{padding:6px 10px;background:#f59e0b;color:#451a03}
+.news-list li{display:block}
+.news-list a{color:#93c5fd;text-decoration:none}
+.muted{color:#94a3b8}
+.log{background:#0f172a;border:1px solid #243057;border-radius:8px;padding:10px;white-space:pre-wrap;max-height:220px;overflow:auto}
+.mascot{position:fixed;right:18px;bottom:18px;z-index:30;display:flex;align-items:flex-end;gap:8px}
+.bubble{max-width:260px;background:#111827;border:1px solid #334155;border-radius:10px;padding:8px 10px;color:#e5e7eb;font-size:12px}
+.mascot img{width:96px;height:96px;image-rendering:pixelated;filter:drop-shadow(0 6px 10px rgba(0,0,0,.35));}
