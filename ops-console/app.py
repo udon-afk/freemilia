@@ -108,13 +108,24 @@ def mascot_state_from_logs():
         if s:
             last = s
             break
-    blob = "\n".join(tail).lower()
-    if any(k in blob for k in ["error", "failed", "exception", "gateway closed"]):
-        return {"state": "failed", "message": last}
-    if any(k in blob for k in ["running", "execute", "processing", "heartbeat"]):
-        return {"state": "running", "message": last}
-    if any(k in blob for k in ["done", "success", "completed"]):
-        return {"state": "success", "message": last}
+
+    # 判定は「直近の有効ログ」を優先して行う（過去エラーの残留でfailed固定化しない）
+    err_kw = [" error", " failed", "exception", "gateway closed", "traceback"]
+    run_kw = ["running", "execute", "processing", "heartbeat", "timer armed", "cron:"]
+    ok_kw = [" done", " success", "completed", " 200 ok"]
+
+    for ln in reversed(tail):
+        s = ln.strip()
+        if not s:
+            continue
+        low = f" {s.lower()}"
+        if any(k in low for k in err_kw):
+            return {"state": "failed", "message": s}
+        if any(k in low for k in run_kw):
+            return {"state": "running", "message": s}
+        if any(k in low for k in ok_kw):
+            return {"state": "success", "message": s}
+
     return {"state": "idle", "message": last or "idle"}
 
 
