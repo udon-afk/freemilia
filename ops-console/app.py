@@ -22,6 +22,11 @@ app.mount(
     StaticFiles(directory="/root/.openclaw/workspace/homework-web3000/public", html=True),
     name="focus-desk",
 )
+app.mount(
+    "/static",
+    StaticFiles(directory="/root/.openclaw/workspace/ops-console/static"),
+    name="static",
+)
 
 
 @app.get("/tools/focus-desk/chat")
@@ -83,6 +88,34 @@ def load_today_news():
 def service_active(name: str) -> bool:
     p = subprocess.run(f"systemctl is-active {name}", shell=True, capture_output=True, text=True)
     return p.returncode == 0 and p.stdout.strip() == "active"
+
+
+def latest_openclaw_log() -> Path | None:
+    root = Path('/tmp/openclaw')
+    logs = sorted(root.glob('openclaw-*.log')) if root.exists() else []
+    return logs[-1] if logs else None
+
+
+def mascot_state_from_logs():
+    p = latest_openclaw_log()
+    if not p or not p.exists():
+        return {"state": "idle", "message": "log not found"}
+
+    tail = p.read_text(encoding='utf-8', errors='ignore').splitlines()[-120:]
+    last = ""
+    for ln in reversed(tail):
+        s = ln.strip()
+        if s:
+            last = s
+            break
+    blob = "\n".join(tail).lower()
+    if any(k in blob for k in ["error", "failed", "exception", "gateway closed"]):
+        return {"state": "failed", "message": last}
+    if any(k in blob for k in ["running", "execute", "processing", "heartbeat"]):
+        return {"state": "running", "message": last}
+    if any(k in blob for k in ["done", "success", "completed"]):
+        return {"state": "success", "message": last}
+    return {"state": "idle", "message": last or "idle"}
 
 
 def build_daily_summary():
@@ -157,6 +190,11 @@ def api_monitor():
         "opsConsole": service_active("ops-console.service"),
         "openclaw": run_cmd("openclaw status"),
     }
+
+
+@app.get('/api/mascot/status')
+def api_mascot_status():
+    return {"ok": True, **mascot_state_from_logs()}
 
 
 @app.post("/api/actions/run/{kind}")
