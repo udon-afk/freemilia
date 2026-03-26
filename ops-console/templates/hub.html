@@ -53,6 +53,13 @@
     </div>
 
     <div class="card" style="margin-top:10px">
+      <h3>Today Sync（Heartbeatログ→ClawHub）</h3>
+      <p class="muted">最新のAUTONOMOUS-HEARTBEATログから Today Plan / Report を抽出表示。</p>
+      <button class="btn" onclick="refreshTodaySync()">Today同期を更新</button>
+      <pre id="today-sync" style="margin-top:8px">未読込</pre>
+    </div>
+
+    <div class="card" style="margin-top:10px">
       <h3>One-shot Registrar（Heartbeat経由）</h3>
       <p class="muted">単発タスクをworkflowsへ登録し、active_projects参照へ追加します。</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -80,6 +87,12 @@
       }
     }
 
+    async function refreshTodaySync(){
+      const r = await fetch('/api/today/sync');
+      const j = await r.json();
+      document.getElementById('today-sync').textContent = JSON.stringify(j, null, 2);
+    }
+
     async function registerWorkflow(){
       const payload = {
         title: document.getElementById('wf-title').value,
@@ -93,6 +106,8 @@
       const j = await r.json();
       document.getElementById('wf-result').textContent = JSON.stringify(j, null, 2);
     }
+
+    refreshTodaySync();
   </script>
 </body>
 </html>

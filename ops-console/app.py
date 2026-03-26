@@ -99,6 +99,57 @@ def build_daily_summary():
     }
 
 
+def _latest_heartbeat_log_path() -> Path | None:
+    tasks_root = Path("/root/.openclaw/workspace/tasks")
+    files = sorted(tasks_root.glob("AUTONOMOUS-HEARTBEAT-*.md"))
+    return files[-1] if files else None
+
+
+def load_today_sync_from_heartbeat():
+    path = _latest_heartbeat_log_path()
+    if not path:
+        return {"ok": False, "error": "heartbeat log not found", "plan": [], "report": {"done": [], "pending": [], "next": []}}
+
+    lines = path.read_text(encoding="utf-8").splitlines()
+    plan, done, pending, nexts = [], [], [], []
+    mode = None
+
+    for ln in lines:
+        s = ln.strip()
+        if s.startswith("## 07:15 Today Plan"):
+            mode = "plan"
+            continue
+        if s.startswith("## 22:30 日次締め"):
+            mode = None
+            continue
+        if s == "### Done":
+            mode = "done"
+            continue
+        if s == "### Pending":
+            mode = "pending"
+            continue
+        if s == "### Next":
+            mode = "next"
+            continue
+        if s.startswith("## ") and not s.startswith("## 07:15 Today Plan"):
+            if mode == "plan":
+                mode = None
+
+        if mode == "plan" and re.match(r"^\d+\.\s+", s):
+            plan.append(re.sub(r"^\d+\.\s+", "", s))
+        elif mode in {"done", "pending"} and s.startswith("- "):
+            (done if mode == "done" else pending).append(s[2:].strip())
+        elif mode == "next" and re.match(r"^\d+\.\s+", s):
+            nexts.append(re.sub(r"^\d+\.\s+", "", s))
+
+    return {
+        "ok": True,
+        "sourcePath": str(path),
+        "plan": plan,
+        "report": {"done": done, "pending": pending, "next": nexts},
+    }
+
+
 @app.get("/api/monitor")
 def api_monitor():
     return {
@@ -149,6 +200,11 @@ def status():
 @app.get("/api/news/today")
 def api_news_today():
     return load_today_news()
+
+
+@app.get("/api/today/sync")
+def api_today_sync():
+    return load_today_sync_from_heartbeat()
 
 
 @app.get("/hub", response_class=HTMLResponse)
