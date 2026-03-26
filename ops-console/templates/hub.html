@@ -79,7 +79,6 @@
   </div>
 
   <div class="mascot" title="ClawHub Mascot">
-    <div class="bubble" id="mascot-msg">待機中…</div>
     <img id="mascot-img" src="/static/mascot/idle_1.png" alt="mascot" />
   </div>
 
@@ -120,7 +119,6 @@
         }
       }catch(e){
         mascotState = 'failed';
-        document.getElementById('mascot-msg').textContent = 'failed | mascot status fetch error';
       }
     }
 

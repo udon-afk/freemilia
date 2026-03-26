@@ -166,8 +166,6 @@ async function refreshMascot(){
     const r = await fetch('/api/mascot/status');
     const j = await r.json();
     mascotState = j.state || 'idle';
-    const msg = document.getElementById('mascotMsg');
-    if(msg) msg.textContent = `${mascotState} | ${j.message || ''}`;
   }catch(e){
     mascotState='failed';
   }
