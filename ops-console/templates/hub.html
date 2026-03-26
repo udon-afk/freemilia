@@ -1,0 +1,98 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>OpenClaw Main Terminal</title>
+  <style>
+    body{font-family:system-ui,sans-serif;background:#0b1020;color:#e5e7eb;margin:0}
+    .wrap{max-width:1100px;margin:24px auto;padding:0 14px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+    .card{background:#131a2e;border:1px solid #243057;border-radius:12px;padding:12px}
+    h1{margin:0 0 8px}.muted{color:#9ca3af}.btn{background:#22c55e;color:#052e16;border:none;padding:8px 10px;border-radius:8px;font-weight:700;cursor:pointer}
+    .btn.alt{background:#60a5fa;color:#0b1b3a}.btn.warn{background:#f59e0b;color:#3a2206}
+    pre{background:#0f172a;color:#d1d5db;padding:10px;border-radius:8px;white-space:pre-wrap;max-height:260px;overflow:auto}
+    a{color:#93c5fd;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>OpenClaw Main Terminal (/hub)</h1>
+    <p class="muted">本命ターミナル（ランチャー + 実行 + 状態確認）</p>
+    <div class="card" style="margin-bottom:10px">
+      <h3>自己紹介</h3>
+      <p>こんにちは、meltmiliaです。お兄ちゃんのOpenClaw運用を手伝う、実験と改善が好きな相棒AIです。</p>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>ランチャー</h3>
+        <p><a href="/tools/focus-desk" target="_blank">Focus Desk を開く</a></p>
+        <p><a href="/" target="_blank">旧MVP画面（保険）</a></p>
+      </div>
+
+      <div class="card">
+        <h3>即実行</h3>
+        <button class="btn" onclick="post('/api/status')">Status更新</button>
+        <button class="btn alt" onclick="post('/api/cron/list')">Cron一覧</button>
+        <button class="btn warn" onclick="post('/api/heartbeat/enable')">Heartbeat ON</button>
+        <button class="btn warn" onclick="post('/api/heartbeat/disable')">Heartbeat OFF</button>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:10px">
+      <div class="card">
+        <h3>status</h3>
+        <pre id="status">{{ status.stdout }}
+{{ status.stderr }}</pre>
+      </div>
+      <div class="card">
+        <h3>cron</h3>
+        <pre id="cron">{{ cron.stdout }}
+{{ cron.stderr }}</pre>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <h3>One-shot Registrar（Heartbeat経由）</h3>
+      <p class="muted">単発タスクをworkflowsへ登録し、active_projects参照へ追加します。</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <input id="wf-title" placeholder="タスク名" style="padding:8px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e5e7eb">
+        <input id="wf-due" placeholder="期限(例: 2026-03-26T23:00:00+09:00)" style="padding:8px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e5e7eb">
+      </div>
+      <textarea id="wf-summary" placeholder="要約/実行内容" style="margin-top:8px;width:100%;min-height:74px;padding:8px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e5e7eb"></textarea>
+      <input id="wf-dst" value="channel:1472610044687290439" style="margin-top:8px;width:100%;padding:8px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e5e7eb">
+      <div style="margin-top:8px">
+        <button class="btn alt" onclick="registerWorkflow()">登録する</button>
+      </div>
+      <pre id="wf-result" style="margin-top:8px">未実行</pre>
+    </div>
+  </div>
+
+  <script>
+    async function post(path){
+      const r = await fetch(path,{method:'POST'});
+      const j = await r.json();
+      if(path.includes('/status')||path.includes('/heartbeat')){
+        document.getElementById('status').textContent=(j.stdout||'')+'\n'+(j.stderr||'');
+      }
+      if(path.includes('/cron')){
+        document.getElementById('cron').textContent=(j.stdout||'')+'\n'+(j.stderr||'');
+      }
+    }
+
+    async function registerWorkflow(){
+      const payload = {
+        title: document.getElementById('wf-title').value,
+        due: document.getElementById('wf-due').value,
+        summary: document.getElementById('wf-summary').value,
+        destination: document.getElementById('wf-dst').value,
+      };
+      const r = await fetch('/api/workflows/register', {
+        method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(payload)
+      });
+      const j = await r.json();
+      document.getElementById('wf-result').textContent = JSON.stringify(j, null, 2);
+    }
+  </script>
+</body>
+</html>
