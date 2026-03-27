@@ -5,7 +5,7 @@ status: done
 lanes_executed:
   - lane_id: clawhub-improvement
     status: done
-    artifact: commit:pending
+    artifact: commit:1a4b389
     summary: "ClawHub承認待ちラベリング規則を追加"
   - lane_id: ops-hygiene
     status: done
