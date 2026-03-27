@@ -9,4 +9,5 @@ projects:
   - memory-repo/operations/workflows/money-evening-review.yaml
   - memory-repo/operations/workflows/skill-clawhub-scout-oneshot-2026-03-26.yaml
   - memory-repo/operations/workflows/registrar-smoke-oneshot-2026-03-26.yaml
-updated_at: '2026-03-26'
+  - memory-repo/operations/workflows/heartbeat-always-run.yaml
+updated_at: '2026-03-27'
