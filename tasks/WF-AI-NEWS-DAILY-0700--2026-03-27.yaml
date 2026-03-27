@@ -1,0 +1,50 @@
+date: 2026-03-27
+timezone: Asia/Tokyo
+window:
+  from: "2026-03-26T07:10:00+09:00"
+  to: "2026-03-27T07:10:00+09:00"
+generated_at: "2026-03-27T07:10:00+09:00"
+sources_checked:
+  - https://blog.google/innovation-and-ai/technology/ai/rss/
+  - https://techcrunch.com/category/artificial-intelligence/feed/
+  - https://www.theverge.com/rss/ai-artificial-intelligence/index.xml
+items:
+  - title: "Google、Geminiに他AIからの記憶/会話履歴インポート機能を追加"
+    published_at: "2026-03-26T17:44:37-04:00"
+    source: "The Verge"
+    url: "https://www.theverge.com/ai-artificial-intelligence/902085/google-gemini-import-memory-chat-history"
+    summary: "Geminiの『Import Memory』『Import Chat History』により、他チャットAIで蓄積したユーザー嗜好や履歴を移行しやすくなった。乗り換えコスト低下を狙う動き。"
+    significance: "AIアシスタント間のロックイン緩和が進み、プロダクト競争が『性能+移行体験』へシフト。"
+
+  - title: "Google、音声/カメラ対話型のSearch Liveをグローバル拡大"
+    published_at: "2026-03-26T15:00:00+00:00"
+    source: "Google Blog"
+    url: "https://blog.google/products-and-platforms/products/search/search-live-global-expansion/"
+    summary: "AI Mode対応地域でSearch Liveを世界展開。対応言語・地域を拡大し、音声+カメラでの対話検索を強化。"
+    significance: "検索UXの会話化がさらに進み、モバイル検索の入口が『キーボード入力』から『ライブ対話』へ。"
+
+  - title: "Google、Gemini 3.1 Flash Liveを発表（音声対話の自然さ・信頼性を改善）"
+    published_at: "2026-03-26T15:21:00+00:00"
+    source: "Google Blog"
+    url: "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-flash-live/"
+    summary: "音声AI体験向けに応答品質と安定性を高めたGemini 3.1 Flash Liveを各種Google製品で展開。"
+    significance: "リアルタイム音声エージェントの実用域が拡大し、検索・翻訳・アシスタント体験の基盤性能が底上げ。"
+
+  - title: "Cohere、文字起こし向けオープンソース音声モデルを公開"
+    published_at: "2026-03-26T13:30:00+00:00"
+    source: "TechCrunch"
+    url: "https://techcrunch.com/2026/03/26/cohere-launches-an-open-source-voice-model-specifically-for-transcription/"
+    summary: "約20億パラメータ級で14言語対応のASRモデルを公開。コンシューマGPUでのセルフホスト利用を想定。"
+    significance: "音声認識の内製化コストが下がり、企業の音声データ活用（通話分析、議事録、自動字幕）が加速。"
+
+  - title: "Wikipedia、AI生成文章による記事執筆を禁止方向で明確化"
+    published_at: "2026-03-26T21:50:10+00:00"
+    source: "TechCrunch"
+    url: "https://techcrunch.com/2026/03/26/wikipedia-cracks-down-on-the-use-of-ai-in-article-writing/"
+    summary: "英語版Wikipediaの運用で、AI生成文章の直接的な記事執筆/書き換えに厳しい制限を適用する動きが強まった。"
+    significance: "生成AI時代の『情報品質ガバナンス』が強化。公開知識基盤でのAI利用ルール整備が他コミュニティにも波及し得る。"
+
+quick_take:
+  - "今日の主軸は『会話UIの実運用拡大（Google）』と『品質統制の厳格化（Wikipedia）』の同時進行。"
+  - "プロダクト側は利便性を押し広げる一方、知識基盤側は検証可能性を重視して利用境界を引く流れ。"
+  - "開発者視点では、音声（ASR/Live対話）と移行体験（他AIからのデータ移行）の優先度が上昇。"

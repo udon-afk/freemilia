@@ -1,0 +1,28 @@
+id: WF-ONESHOT-REGISTRAR-SMOKE-2026-03-26
+name: registrar-smoke
+status: active
+owner: orchestrator
+schedule:
+  type: one_shot
+  due: '2026-03-26T23:30:00+09:00'
+  timezone: Asia/Tokyo
+trigger:
+  source: heartbeat
+  condition: now <= due and no done record
+task:
+  type: research_report
+  summary: smoke test
+  steps:
+  - smoke test
+output:
+  destination: channel:1472610044687290439
+  format: short_bullets
+state:
+  last_run_at: null
+  last_status: pending
+  dedupe_key: registrar-smoke-2026-03-26
+cleanup:
+  after_done: true
+  action: set status=done and remove workflow file
+approval:
+  required: false

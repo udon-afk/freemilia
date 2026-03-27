@@ -1,0 +1,42 @@
+id: WF-HEARTBEAT-ALWAYS-RUN
+name: Heartbeat毎回実行タスク（自走レーン）
+status: active
+owner: orchestrator
+schedule:
+  type: on_heartbeat
+  mode: always
+trigger:
+  source: heartbeat
+  condition: "every heartbeat tick"
+policy:
+  dedupe_window_min: 50
+  max_tasks_per_tick: 2
+  require_artifact: true
+lanes:
+  - id: clawhub-improvement
+    enabled: true
+    priority: high
+    summary: "ClawHubの小改良を1本実装（45分以内）"
+    done_condition: "commit created"
+    artifact: "git commit url"
+  - id: ops-hygiene
+    enabled: true
+    priority: medium
+    summary: "運用健全化の軽作業（監視・整備・修正）を1本"
+    done_condition: "file update or commit"
+    artifact: "file path or commit url"
+  - id: sns-delegation-prep
+    enabled: false
+    priority: medium
+    summary: "SNS委任運用の準備タスクを1本"
+    done_condition: "workflow/strategy update"
+    artifact: "file path"
+output:
+  destination: "current_session"
+  format: "short_bullets"
+state:
+  last_run_at: null
+  last_status: pending
+  dedupe_key: "heartbeat-always-run"
+approval:
+  required: false

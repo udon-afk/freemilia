@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Open Claw Console</title>
+  <link rel="stylesheet" href="/tools/focus-desk/style.css" />
+</head>
+<body>
+  <header class="topbar">Open Claw Console</header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <h3>Folders</h3>
+      <button class="nav active" data-view="home">home</button>
+      <a class="nav link" href="/news/today-ja" target="_blank">news</a>
+      <a class="nav link" href="/profile/user" target="_blank">user-profile</a>
+      <a class="nav link" href="/strategy/money" target="_blank">money-strategy</a>
+      <button class="nav" data-view="todo">focus-tools</button>
+    </aside>
+
+    <section class="content">
+      <div id="view-home" class="view show">
+        <h2>メインターミナル</h2>
+        <p>左のフォルダーからページを選択してね。</p>
+
+        <section class="card">
+          <h3>Quick Actions</h3>
+          <div class="row wrap">
+            <button id="runNews">ニュース再実行</button>
+            <button id="runMoney">money再実行</button>
+            <button id="runHeartbeat">heartbeat実行</button>
+            <button id="refreshMonitor">監視更新</button>
+          </div>
+          <pre id="actionLog" class="log">待機中</pre>
+        </section>
+
+        <section class="card">
+          <h3>監視ダッシュボード</h3>
+          <ul id="monitorList"></ul>
+        </section>
+
+        <section class="card">
+          <h3>日次サマリー</h3>
+          <ul id="summaryList"></ul>
+        </section>
+
+        <section class="card">
+          <h3>Today Sync（Heartbeat→ClawHub）</h3>
+          <button id="refreshTodaySync">Today同期を更新</button>
+          <pre id="todaySyncLog" class="log">未読込</pre>
+        </section>
+
+        <section class="card">
+          <h3>One-shot Registrar</h3>
+          <div class="row wrap">
+            <input id="wfTitle" placeholder="タスク名" />
+            <input id="wfDue" placeholder="期限 例: 2026-03-26T23:00:00+09:00" />
+          </div>
+          <textarea id="wfSummary" rows="3" placeholder="要約/実行内容"></textarea>
+          <div class="row" style="margin-top:8px">
+            <input id="wfDst" value="channel:1472610044687290439" />
+            <button id="wfRegister">登録</button>
+          </div>
+          <pre id="wfResult" class="log">未実行</pre>
+        </section>
+      </div>
+
+      <div id="view-todo" class="view">
+        <h2>Focus Tools</h2>
+
+        <section class="card">
+          <h3>ToDo</h3>
+          <div class="row">
+            <input id="todoInput" placeholder="やることを入力" />
+            <button id="addTodo">追加</button>
+          </div>
+          <ul id="todoList"></ul>
+        </section>
+
+        <section class="card">
+          <h3>Quick Memo</h3>
+          <textarea id="memo" rows="6" placeholder="メモを自由に書く"></textarea>
+          <small>自動保存されます</small>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <div class="mascot" title="ClawHub Mascot">
+    <img id="mascotImg" src="/static/mascot/idle_1.png" alt="mascot" />
+  </div>
+
+  <script src="/tools/focus-desk/script.js"></script>
+</body>
+</html>
