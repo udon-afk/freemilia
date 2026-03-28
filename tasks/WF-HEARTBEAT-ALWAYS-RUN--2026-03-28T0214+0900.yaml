@@ -5,7 +5,7 @@ status: done
 lanes_executed:
   - lane_id: clawhub-improvement
     status: done
-    artifact: commit:pending
+    artifact: commit:17378dd
     summary: "成果物命名整合ルールを追加"
   - lane_id: ops-hygiene
     status: done

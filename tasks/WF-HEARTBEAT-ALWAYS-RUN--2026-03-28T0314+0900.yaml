@@ -5,7 +5,7 @@ status: done
 lanes_executed:
   - lane_id: clawhub-improvement
     status: done
-    artifact: commit:pending
+    artifact: commit:7269002
     summary: "深夜帯の軽量変更スコープ運用ノートを追加"
   - lane_id: ops-hygiene
     status: done
