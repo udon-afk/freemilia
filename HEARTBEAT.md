@@ -12,7 +12,8 @@
 2. 定期タスク候補を抽出（期限・頻度・優先度）
 3. `memory-repo/operations/workflows/heartbeat-always-run.yaml` を参照し、毎回実行レーンを先に処理
    - dedupe_window内の重複実行は禁止
-   - 1heartbeatあたり最大2タスク
+   - 1heartbeatあたり最大3タスク
+   - `clawhub-improvement` は毎tickで優先実行（必須レーン）
    - 実行したら必ず成果物（commit/file）を残す
 4. 未実行/期限超過タスクを `tasks/` に起票 or 更新
 5. 実行可能なものは即実行
